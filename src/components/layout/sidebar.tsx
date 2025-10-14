@@ -36,6 +36,11 @@ const navigationItems = [
     icon: FolderOpen,
   },
   {
+    name: 'Project Spin-Up',
+    href: '/spin-up',
+    icon: Zap,
+  },
+  {
     name: 'Intake Chat',
     href: '/intake',
     icon: MessageSquare,

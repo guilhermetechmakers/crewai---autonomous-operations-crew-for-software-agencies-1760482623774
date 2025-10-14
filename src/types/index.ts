@@ -156,3 +156,123 @@ export interface AuthState {
   isLoading: boolean;
   isAuthenticated: boolean;
 }
+
+// Project Spin-Up Types
+export interface ProjectSpinUp {
+  id: string;
+  name: string;
+  description: string;
+  client_id: string;
+  workspace_id: string;
+  status: 'draft' | 'configuring' | 'provisioning' | 'completed' | 'failed';
+  configuration: SpinUpConfiguration;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SpinUpConfiguration {
+  repository: RepositoryConfig;
+  environment: EnvironmentConfig;
+  infrastructure: InfrastructureConfig;
+  integrations: IntegrationConfig[];
+  deployment: DeploymentConfig;
+}
+
+export interface RepositoryConfig {
+  name: string;
+  description: string;
+  visibility: 'public' | 'private';
+  template?: string;
+  framework: 'nextjs' | 'react' | 'vue' | 'angular' | 'svelte' | 'vanilla';
+  package_manager: 'npm' | 'yarn' | 'pnpm';
+  features: string[];
+}
+
+export interface EnvironmentConfig {
+  name: string;
+  type: 'development' | 'staging' | 'production';
+  domain?: string;
+  ssl_enabled: boolean;
+  auto_deploy: boolean;
+  environment_variables: Record<string, string>;
+}
+
+export interface InfrastructureConfig {
+  provider: 'vercel' | 'netlify' | 'aws' | 'gcp' | 'azure';
+  region: string;
+  tier: 'free' | 'pro' | 'enterprise';
+  database: DatabaseConfig;
+  storage: StorageConfig;
+  monitoring: MonitoringConfig;
+}
+
+export interface DatabaseConfig {
+  type: 'postgresql' | 'mysql' | 'mongodb' | 'sqlite';
+  provider: 'supabase' | 'planetscale' | 'mongodb_atlas' | 'local';
+  backup_enabled: boolean;
+  scaling: 'auto' | 'manual';
+}
+
+export interface StorageConfig {
+  type: 'local' | 's3' | 'cloudinary' | 'supabase_storage';
+  provider?: string;
+  cdn_enabled: boolean;
+  optimization: boolean;
+}
+
+export interface MonitoringConfig {
+  enabled: boolean;
+  provider: 'vercel_analytics' | 'google_analytics' | 'mixpanel' | 'custom';
+  error_tracking: boolean;
+  performance_monitoring: boolean;
+}
+
+export interface DeploymentConfig {
+  strategy: 'manual' | 'auto' | 'scheduled';
+  branch: string;
+  preview_environments: boolean;
+  rollback_enabled: boolean;
+  health_checks: boolean;
+}
+
+export interface SpinUpStep {
+  id: string;
+  title: string;
+  description: string;
+  status: 'pending' | 'in_progress' | 'completed' | 'failed';
+  order: number;
+  estimated_duration: number; // in minutes
+  dependencies?: string[];
+}
+
+export interface SpinUpProgress {
+  spinup_id: string;
+  current_step: string;
+  completed_steps: string[];
+  total_steps: number;
+  progress_percentage: number;
+  estimated_completion: string;
+  logs: SpinUpLog[];
+}
+
+export interface SpinUpLog {
+  id: string;
+  step_id: string;
+  level: 'info' | 'warning' | 'error' | 'success';
+  message: string;
+  timestamp: string;
+  details?: Record<string, any>;
+}
+
+export interface SpinUpTemplate {
+  id: string;
+  name: string;
+  description: string;
+  category: 'web_app' | 'api' | 'mobile' | 'desktop' | 'fullstack';
+  framework: string;
+  features: string[];
+  estimated_setup_time: number; // in minutes
+  complexity: 'beginner' | 'intermediate' | 'advanced';
+  preview_url?: string;
+  repository_url?: string;
+}

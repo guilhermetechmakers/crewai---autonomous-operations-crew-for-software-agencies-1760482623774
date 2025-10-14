@@ -51,3 +51,21 @@ export const api = {
   delete: <T>(endpoint: string) => 
     apiRequest<T>(endpoint, { method: 'DELETE' }),
 };
+
+// Project Spin-Up API functions
+export const spinUpApi = {
+  initiate: (data: {
+    name: string;
+    description: string;
+    configuration: any;
+  }) => api.post<{ id: string; status: string }>('/spinup/initiate', data),
+  
+  getProgress: (spinupId: string) => 
+    api.get<{ progress: number; status: string; logs: any[] }>(`/spinup/${spinupId}/progress`),
+  
+  getTemplates: () => 
+    api.get<any[]>('/spinup/templates'),
+  
+  cancel: (spinupId: string) => 
+    api.post<{ success: boolean }>(`/spinup/${spinupId}/cancel`, {}),
+};

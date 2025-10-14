@@ -270,6 +270,15 @@ export default function DashboardPage() {
               </Link>
               
               <Link
+                to="/spin-up"
+                className="p-4 rounded-lg border border-border hover:bg-secondary/50 transition-colors text-center group"
+              >
+                <Zap className="h-8 w-8 text-primary mx-auto mb-2 group-hover:scale-110 transition-transform" />
+                <h3 className="font-medium text-foreground mb-1">Project Spin-Up</h3>
+                <p className="text-sm text-muted-foreground">Auto-setup project</p>
+              </Link>
+              
+              <Link
                 to="/projects/new"
                 className="p-4 rounded-lg border border-border hover:bg-secondary/50 transition-colors text-center group"
               >

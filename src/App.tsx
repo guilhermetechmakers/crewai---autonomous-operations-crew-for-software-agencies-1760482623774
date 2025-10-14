@@ -10,6 +10,7 @@ import PasswordResetPage from "./pages/PasswordResetPage";
 import OnboardingPage from "./pages/OnboardingPage";
 import DashboardPage from "./pages/DashboardPage";
 import ProjectBoardPage from "./pages/ProjectBoardPage";
+import ProjectSpinUpPage from "./pages/ProjectSpinUpPage";
 import IntakeChatPage from "./pages/IntakeChatPage";
 import SettingsPage from "./pages/SettingsPage";
 import PricingPage from "./pages/PricingPage";
@@ -44,6 +45,7 @@ export default function App() {
               <Route path="/onboarding" element={<OnboardingPage />} />
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/projects/:id" element={<ProjectBoardPage />} />
+              <Route path="/spin-up" element={<ProjectSpinUpPage />} />
               <Route path="/intake" element={<IntakeChatPage />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/pricing" element={<PricingPage />} />
