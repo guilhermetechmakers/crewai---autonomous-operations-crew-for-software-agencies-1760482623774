@@ -144,14 +144,19 @@ export function TaskScheduler({ onTaskCreated, className }: TaskSchedulerProps) 
   const selectedAgent = agentTypes.find(agent => agent.value === selectedAgentType);
 
   return (
-    <Card className={cn('animate-fade-in-up', className)}>
-      <CardHeader>
+    <Card className={cn('animate-fade-in-up group hover:shadow-glow transition-all duration-300', className)}>
+      <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
-            <Plus className="h-5 w-5 text-primary" />
-            Schedule New Task
+          <CardTitle className="flex items-center gap-3 text-2xl">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-glow">
+              <Plus className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <div className="gradient-text font-bold">Schedule New Task</div>
+              <p className="text-sm text-muted-foreground font-normal">Create automated agent workflows</p>
+            </div>
           </CardTitle>
-          <Badge variant="secondary" className="text-xs">
+          <Badge variant="secondary" className="text-xs px-3 py-1 rounded-full bg-primary/10 text-primary border-primary/20">
             Agent Orchestration
           </Badge>
         </div>
@@ -229,8 +234,8 @@ export function TaskScheduler({ onTaskCreated, className }: TaskSchedulerProps) 
 
           {/* Agent Selection */}
           <div className="space-y-4">
-            <Label>Select Agent</Label>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            <Label className="text-base font-semibold">Select Agent</Label>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {agentTypes.map((agent) => {
                 const Icon = agent.icon;
                 const isSelected = selectedAgentType === agent.value;
@@ -241,24 +246,37 @@ export function TaskScheduler({ onTaskCreated, className }: TaskSchedulerProps) 
                     type="button"
                     onClick={() => setValue('agent_type', agent.value as any)}
                     className={cn(
-                      'p-4 rounded-lg border-2 transition-all duration-200 text-left group',
+                      'p-5 rounded-2xl border-2 transition-all duration-300 text-left group relative overflow-hidden',
                       isSelected
-                        ? 'border-primary bg-primary/5 shadow-glow'
-                        : 'border-border hover:border-primary/50 hover:bg-secondary/50'
+                        ? 'border-primary bg-gradient-to-br from-primary/10 to-accent/10 shadow-glow scale-105'
+                        : 'border-border hover:border-primary/50 hover:bg-secondary/50 hover:scale-102'
                     )}
                   >
-                    <div className="flex items-start gap-3">
+                    {/* Gradient overlay for selected state */}
+                    {isSelected && (
+                      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-accent/5 rounded-2xl" />
+                    )}
+                    
+                    <div className="relative flex items-start gap-4">
                       <div className={cn(
-                        'w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0',
-                        agent.color
+                        'w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-300',
+                        isSelected 
+                          ? 'bg-gradient-to-br from-primary to-accent shadow-lg' 
+                          : 'bg-primary/10 group-hover:bg-primary/20'
                       )}>
-                        <Icon className="h-5 w-5" />
+                        <Icon className={cn(
+                          'h-6 w-6 transition-colors',
+                          isSelected ? 'text-white' : agent.color
+                        )} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-medium text-foreground group-hover:text-primary transition-colors">
+                        <h3 className={cn(
+                          'font-semibold text-foreground transition-colors mb-1',
+                          isSelected ? 'text-primary' : 'group-hover:text-primary'
+                        )}>
                           {agent.label}
                         </h3>
-                        <p className="text-sm text-muted-foreground mt-1">
+                        <p className="text-sm text-muted-foreground leading-relaxed">
                           {agent.description}
                         </p>
                       </div>
@@ -271,51 +289,111 @@ export function TaskScheduler({ onTaskCreated, className }: TaskSchedulerProps) 
 
           {/* Schedule Type */}
           <div className="space-y-4">
-            <Label>Schedule Type</Label>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <Label className="text-base font-semibold">Schedule Type</Label>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <button
                 type="button"
                 onClick={() => setScheduleType('immediate')}
                 className={cn(
-                  'p-4 rounded-lg border-2 transition-all duration-200 text-center group',
+                  'p-6 rounded-2xl border-2 transition-all duration-300 text-center group relative overflow-hidden',
                   scheduleType === 'immediate'
-                    ? 'border-primary bg-primary/5 shadow-glow'
-                    : 'border-border hover:border-primary/50 hover:bg-secondary/50'
+                    ? 'border-primary bg-gradient-to-br from-primary/10 to-accent/10 shadow-glow scale-105'
+                    : 'border-border hover:border-primary/50 hover:bg-secondary/50 hover:scale-102'
                 )}
               >
-                <Play className="h-6 w-6 mx-auto mb-2 text-primary" />
-                <h3 className="font-medium text-foreground">Immediate</h3>
-                <p className="text-sm text-muted-foreground">Run now</p>
+                {scheduleType === 'immediate' && (
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-accent/5 rounded-2xl" />
+                )}
+                <div className="relative">
+                  <div className={cn(
+                    'w-12 h-12 mx-auto mb-3 rounded-xl flex items-center justify-center transition-all duration-300',
+                    scheduleType === 'immediate'
+                      ? 'bg-gradient-to-br from-primary to-accent shadow-lg'
+                      : 'bg-primary/10 group-hover:bg-primary/20'
+                  )}>
+                    <Play className={cn(
+                      'h-6 w-6 transition-colors',
+                      scheduleType === 'immediate' ? 'text-white' : 'text-primary'
+                    )} />
+                  </div>
+                  <h3 className={cn(
+                    'font-semibold text-foreground mb-1 transition-colors',
+                    scheduleType === 'immediate' ? 'text-primary' : 'group-hover:text-primary'
+                  )}>
+                    Immediate
+                  </h3>
+                  <p className="text-sm text-muted-foreground">Run now</p>
+                </div>
               </button>
 
               <button
                 type="button"
                 onClick={() => setScheduleType('scheduled')}
                 className={cn(
-                  'p-4 rounded-lg border-2 transition-all duration-200 text-center group',
+                  'p-6 rounded-2xl border-2 transition-all duration-300 text-center group relative overflow-hidden',
                   scheduleType === 'scheduled'
-                    ? 'border-primary bg-primary/5 shadow-glow'
-                    : 'border-border hover:border-primary/50 hover:bg-secondary/50'
+                    ? 'border-primary bg-gradient-to-br from-primary/10 to-accent/10 shadow-glow scale-105'
+                    : 'border-border hover:border-primary/50 hover:bg-secondary/50 hover:scale-102'
                 )}
               >
-                <Calendar className="h-6 w-6 mx-auto mb-2 text-primary" />
-                <h3 className="font-medium text-foreground">Scheduled</h3>
-                <p className="text-sm text-muted-foreground">Run at specific time</p>
+                {scheduleType === 'scheduled' && (
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-accent/5 rounded-2xl" />
+                )}
+                <div className="relative">
+                  <div className={cn(
+                    'w-12 h-12 mx-auto mb-3 rounded-xl flex items-center justify-center transition-all duration-300',
+                    scheduleType === 'scheduled'
+                      ? 'bg-gradient-to-br from-primary to-accent shadow-lg'
+                      : 'bg-primary/10 group-hover:bg-primary/20'
+                  )}>
+                    <Calendar className={cn(
+                      'h-6 w-6 transition-colors',
+                      scheduleType === 'scheduled' ? 'text-white' : 'text-primary'
+                    )} />
+                  </div>
+                  <h3 className={cn(
+                    'font-semibold text-foreground mb-1 transition-colors',
+                    scheduleType === 'scheduled' ? 'text-primary' : 'group-hover:text-primary'
+                  )}>
+                    Scheduled
+                  </h3>
+                  <p className="text-sm text-muted-foreground">Run at specific time</p>
+                </div>
               </button>
 
               <button
                 type="button"
                 onClick={() => setScheduleType('recurring')}
                 className={cn(
-                  'p-4 rounded-lg border-2 transition-all duration-200 text-center group',
+                  'p-6 rounded-2xl border-2 transition-all duration-300 text-center group relative overflow-hidden',
                   scheduleType === 'recurring'
-                    ? 'border-primary bg-primary/5 shadow-glow'
-                    : 'border-border hover:border-primary/50 hover:bg-secondary/50'
+                    ? 'border-primary bg-gradient-to-br from-primary/10 to-accent/10 shadow-glow scale-105'
+                    : 'border-border hover:border-primary/50 hover:bg-secondary/50 hover:scale-102'
                 )}
               >
-                <Clock className="h-6 w-6 mx-auto mb-2 text-primary" />
-                <h3 className="font-medium text-foreground">Recurring</h3>
-                <p className="text-sm text-muted-foreground">Run on schedule</p>
+                {scheduleType === 'recurring' && (
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-accent/5 rounded-2xl" />
+                )}
+                <div className="relative">
+                  <div className={cn(
+                    'w-12 h-12 mx-auto mb-3 rounded-xl flex items-center justify-center transition-all duration-300',
+                    scheduleType === 'recurring'
+                      ? 'bg-gradient-to-br from-primary to-accent shadow-lg'
+                      : 'bg-primary/10 group-hover:bg-primary/20'
+                  )}>
+                    <Clock className={cn(
+                      'h-6 w-6 transition-colors',
+                      scheduleType === 'recurring' ? 'text-white' : 'text-primary'
+                    )} />
+                  </div>
+                  <h3 className={cn(
+                    'font-semibold text-foreground mb-1 transition-colors',
+                    scheduleType === 'recurring' ? 'text-primary' : 'group-hover:text-primary'
+                  )}>
+                    Recurring
+                  </h3>
+                  <p className="text-sm text-muted-foreground">Run on schedule</p>
+                </div>
               </button>
             </div>
           </div>

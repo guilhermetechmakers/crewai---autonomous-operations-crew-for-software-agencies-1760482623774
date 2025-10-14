@@ -186,24 +186,31 @@ export function TaskList({ tasks, onTaskAction, className }: TaskListProps) {
   }
 
   return (
-    <Card className={cn('animate-fade-in-up', className)}>
-      <CardHeader>
+    <Card className={cn('animate-fade-in-up group hover:shadow-glow transition-all duration-300', className)}>
+      <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
-            <Zap className="h-5 w-5 text-primary" />
-            Agent Tasks
-            <Badge variant="secondary" className="text-xs">
+          <CardTitle className="flex items-center gap-3 text-2xl">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-glow">
+              <Zap className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <div className="gradient-text font-bold">Agent Tasks</div>
+              <p className="text-sm text-muted-foreground font-normal">Monitor and manage automated workflows</p>
+            </div>
+          </CardTitle>
+          <div className="flex items-center gap-4">
+            <Badge variant="secondary" className="text-xs px-3 py-1 rounded-full bg-primary/10 text-primary border-primary/20">
               {tasks.length} total
             </Badge>
-          </CardTitle>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <div className="flex items-center gap-1">
-              <div className="w-2 h-2 rounded-full bg-blue-500" />
-              {tasks.filter(t => t.status === 'running').length} running
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-2 h-2 rounded-full bg-green-500" />
-              {tasks.filter(t => t.status === 'completed').length} completed
+            <div className="flex items-center gap-3 text-sm">
+              <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20">
+                <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                <span className="text-blue-400 font-medium">{tasks.filter(t => t.status === 'running').length} running</span>
+              </div>
+              <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-green-500/10 border border-green-500/20">
+                <div className="w-2 h-2 rounded-full bg-green-500" />
+                <span className="text-green-400 font-medium">{tasks.filter(t => t.status === 'completed').length} completed</span>
+              </div>
             </div>
           </div>
         </div>
@@ -218,7 +225,7 @@ export function TaskList({ tasks, onTaskAction, className }: TaskListProps) {
               <div
                 key={task.id}
                 className={cn(
-                  'border-b border-border last:border-b-0 p-4 hover:bg-secondary/30 transition-colors',
+                  'border-b border-border last:border-b-0 p-6 hover:bg-gradient-to-r hover:from-secondary/20 hover:to-transparent transition-all duration-300 group',
                   'animate-fade-in-up'
                 )}
                 style={{ animationDelay: `${index * 100}ms` }}
@@ -227,10 +234,10 @@ export function TaskList({ tasks, onTaskAction, className }: TaskListProps) {
                   <div className="flex items-start gap-3 flex-1 min-w-0">
                     {/* Agent Icon */}
                     <div className={cn(
-                      'w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0',
+                      'w-12 h-12 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-all duration-300 shadow-lg',
                       agentColors[task.agent_type]
                     )}>
-                      <AgentIcon className="h-5 w-5" />
+                      <AgentIcon className="h-6 w-6" />
                     </div>
 
                     {/* Task Details */}
