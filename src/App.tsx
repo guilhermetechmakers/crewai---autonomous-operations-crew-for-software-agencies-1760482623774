@@ -4,9 +4,14 @@ import { Toaster } from "sonner";
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
+import EmailVerificationPage from "./pages/EmailVerificationPage";
+import PasswordResetPage from "./pages/PasswordResetPage";
+import OnboardingPage from "./pages/OnboardingPage";
 import DashboardPage from "./pages/DashboardPage";
 import ProjectBoardPage from "./pages/ProjectBoardPage";
 import IntakeChatPage from "./pages/IntakeChatPage";
+import SettingsPage from "./pages/SettingsPage";
+import PricingPage from "./pages/PricingPage";
 import NotFoundPage from "./pages/NotFoundPage";
 
 // React Query client with optimal defaults
@@ -30,9 +35,15 @@ export default function App() {
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<SignupPage />} />
+            <Route path="/email-verification" element={<EmailVerificationPage />} />
+            <Route path="/forgot-password" element={<PasswordResetPage />} />
+            <Route path="/reset-password" element={<PasswordResetPage />} />
+            <Route path="/onboarding" element={<OnboardingPage />} />
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/projects/:id" element={<ProjectBoardPage />} />
             <Route path="/intake" element={<IntakeChatPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/pricing" element={<PricingPage />} />
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </div>
