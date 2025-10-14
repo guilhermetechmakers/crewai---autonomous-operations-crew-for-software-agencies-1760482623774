@@ -48,6 +48,6 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
-  delete: (endpoint: string) => 
-    apiRequest(endpoint, { method: 'DELETE' }),
+  delete: <T>(endpoint: string) => 
+    apiRequest<T>(endpoint, { method: 'DELETE' }),
 };

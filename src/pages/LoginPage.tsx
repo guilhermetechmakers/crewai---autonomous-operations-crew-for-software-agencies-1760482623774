@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Bot, Github, Mail } from 'lucide-react';
+import { SSOProviders } from '@/components/auth/SSOProviders';
+import { Bot } from 'lucide-react';
 
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -46,9 +47,12 @@ export default function LoginPage() {
     }
   };
 
-  const handleSSOLogin = (provider: string) => {
-    toast.info(`Signing in with ${provider}...`);
-    // In a real app, this would redirect to the SSO provider
+  const handleSSOSuccess = () => {
+    toast.success('Redirecting to SSO provider...');
+  };
+
+  const handleSSOError = (error: string) => {
+    console.error('SSO Error:', error);
   };
 
   return (
@@ -134,35 +138,12 @@ export default function LoginPage() {
               </Button>
             </form>
 
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-border" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">
-                  Or continue with
-                </span>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <Button
-                variant="outline"
-                onClick={() => handleSSOLogin('Google')}
-                className="w-full"
-              >
-                <Mail className="h-4 w-4 mr-2" />
-                Google
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => handleSSOLogin('GitHub')}
-                className="w-full"
-              >
-                <Github className="h-4 w-4 mr-2" />
-                GitHub
-              </Button>
-            </div>
+            <SSOProviders
+              onSuccess={handleSSOSuccess}
+              onError={handleSSOError}
+              variant="outline"
+              size="default"
+            />
           </CardContent>
         </Card>
 

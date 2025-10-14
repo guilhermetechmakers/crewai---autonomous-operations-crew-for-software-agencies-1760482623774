@@ -107,3 +107,52 @@ export interface PaginatedResponse<T> {
   page: number;
   limit: number;
 }
+
+// OAuth and SSO Types
+export interface OAuthProvider {
+  id: string;
+  name: string;
+  icon: string;
+  color: string;
+  enabled: boolean;
+}
+
+export interface OAuthUser {
+  id: string;
+  email: string;
+  name: string;
+  avatar_url?: string;
+  provider: 'google' | 'github' | 'microsoft';
+  provider_id: string;
+}
+
+export interface OAuthCallbackResponse {
+  success: boolean;
+  user?: User;
+  token?: string;
+  error?: string;
+  requires_signup?: boolean;
+}
+
+export interface SSOConfig {
+  google: {
+    client_id: string;
+    enabled: boolean;
+  };
+  github: {
+    client_id: string;
+    enabled: boolean;
+  };
+  microsoft: {
+    client_id: string;
+    tenant_id: string;
+    enabled: boolean;
+  };
+}
+
+export interface AuthState {
+  user: User | null;
+  token: string | null;
+  isLoading: boolean;
+  isAuthenticated: boolean;
+}
