@@ -18,6 +18,8 @@ import {
   ChevronRight,
   Plus,
   Search,
+  Play,
+  Clock,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -59,6 +61,27 @@ const navigationItems = [
     name: 'Settings',
     href: '/settings',
     icon: Settings,
+  },
+];
+
+const orchestrationItems = [
+  {
+    name: 'Agent Orchestration',
+    href: '/orchestration',
+    icon: Bot,
+    description: 'Manage automated tasks',
+  },
+  {
+    name: 'Task Scheduler',
+    href: '/orchestration/scheduler',
+    icon: Clock,
+    description: 'Schedule new tasks',
+  },
+  {
+    name: 'Task Monitor',
+    href: '/orchestration/monitor',
+    icon: Play,
+    description: 'Monitor running tasks',
   },
 ];
 
@@ -171,6 +194,42 @@ export function Sidebar({ className }: SidebarProps) {
               >
                 <item.icon className="h-4 w-4 flex-shrink-0" />
                 {!collapsed && <span>{item.name}</span>}
+              </Link>
+            );
+          })}
+        </div>
+
+        <Separator className="mx-4" />
+
+        {/* Agent Orchestration */}
+        <div className="p-4 space-y-1">
+          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+            {collapsed ? '' : 'Orchestration'}
+          </div>
+          {orchestrationItems.map((item) => {
+            const isActive = location.pathname === item.href || 
+              (item.href === '/orchestration' && location.pathname.startsWith('/orchestration'));
+            return (
+              <Link
+                key={item.name}
+                to={item.href}
+                className={cn(
+                  'flex items-center space-x-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                  isActive
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                  collapsed && 'justify-center'
+                )}
+              >
+                <item.icon className="h-4 w-4 flex-shrink-0" />
+                {!collapsed && (
+                  <div className="flex-1 min-w-0">
+                    <span className="truncate">{item.name}</span>
+                    <div className="text-xs text-muted-foreground">
+                      {item.description}
+                    </div>
+                  </div>
+                )}
               </Link>
             );
           })}

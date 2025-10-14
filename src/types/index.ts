@@ -276,3 +276,68 @@ export interface SpinUpTemplate {
   preview_url?: string;
   repository_url?: string;
 }
+
+// Agent Orchestration Types
+export interface AgentTask {
+  id: string;
+  name: string;
+  description: string;
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  agent_type: 'intake' | 'spin_up' | 'pm' | 'launch' | 'handover' | 'support';
+  scheduled_at?: string;
+  started_at?: string;
+  completed_at?: string;
+  progress: number; // 0-100
+  logs: AgentTaskLog[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AgentTaskLog {
+  id: string;
+  task_id: string;
+  level: 'info' | 'warning' | 'error' | 'success';
+  message: string;
+  timestamp: string;
+  details?: Record<string, any>;
+}
+
+export interface AgentSchedule {
+  id: string;
+  task_id: string;
+  cron_expression: string;
+  timezone: string;
+  is_active: boolean;
+  last_run?: string;
+  next_run?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AgentOrchestrationStatus {
+  is_running: boolean;
+  active_tasks: number;
+  completed_tasks_today: number;
+  failed_tasks_today: number;
+  agents_status: Record<string, 'active' | 'inactive' | 'error'>;
+  last_activity: string;
+}
+
+export interface CreateTaskRequest {
+  name: string;
+  description: string;
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  agent_type: 'intake' | 'spin_up' | 'pm' | 'launch' | 'handover' | 'support';
+  scheduled_at?: string;
+  cron_expression?: string;
+  timezone?: string;
+}
+
+export interface TaskExecutionResult {
+  task_id: string;
+  status: 'completed' | 'failed';
+  result?: any;
+  error?: string;
+  execution_time: number; // in milliseconds
+}

@@ -12,6 +12,7 @@ import DashboardPage from "./pages/DashboardPage";
 import ProjectBoardPage from "./pages/ProjectBoardPage";
 import ProjectSpinUpPage from "./pages/ProjectSpinUpPage";
 import IntakeChatPage from "./pages/IntakeChatPage";
+import OrchestrationPage from "./pages/OrchestrationPage";
 import SettingsPage from "./pages/SettingsPage";
 import PricingPage from "./pages/PricingPage";
 import OAuthCallbackPage from "./pages/OAuthCallbackPage";
@@ -47,6 +48,8 @@ export default function App() {
               <Route path="/projects/:id" element={<ProjectBoardPage />} />
               <Route path="/spin-up" element={<ProjectSpinUpPage />} />
               <Route path="/intake" element={<IntakeChatPage />} />
+              <Route path="/orchestration" element={<OrchestrationPage />} />
+              <Route path="/orchestration/*" element={<OrchestrationPage />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/pricing" element={<PricingPage />} />
               <Route path="/auth/callback" element={<OAuthCallbackPage />} />

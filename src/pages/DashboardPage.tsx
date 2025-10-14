@@ -1,8 +1,13 @@
 import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import { TaskScheduler } from '@/components/ui/task-scheduler';
+import { TaskList } from '@/components/ui/task-list';
+import { agentOrchestrationEngine } from '@/services/AgentOrchestrationEngineService';
 import { 
   FolderOpen, 
   CheckCircle,
@@ -11,11 +16,79 @@ import {
   BarChart3,
   Zap,
   MessageSquare,
-  Settings
+  Settings,
+  Play,
+  Pause
 } from 'lucide-react';
+import type { AgentTask, CreateTaskRequest } from '@/types';
 
 export default function DashboardPage() {
-  // Mock data - in real app this would come from API
+  // Agent orchestration state
+  const [tasks, setTasks] = useState<AgentTask[]>([]);
+  const [orchestrationStatus, setOrchestrationStatus] = useState(agentOrchestrationEngine.getStatus());
+  const [isOrchestrationRunning, setIsOrchestrationRunning] = useState(false);
+
+  // Initialize orchestration engine and load tasks
+  useEffect(() => {
+    const initializeOrchestration = async () => {
+      try {
+        await agentOrchestrationEngine.initializeAgents();
+        setTasks(agentOrchestrationEngine.getTasks());
+        setOrchestrationStatus(agentOrchestrationEngine.getStatus());
+        setIsOrchestrationRunning(true);
+      } catch (error) {
+        console.error('Failed to initialize orchestration engine:', error);
+      }
+    };
+
+    initializeOrchestration();
+
+    // Set up periodic updates
+    const interval = setInterval(() => {
+      setTasks(agentOrchestrationEngine.getTasks());
+      setOrchestrationStatus(agentOrchestrationEngine.getStatus());
+    }, 5000); // Update every 5 seconds
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Handle task creation
+  const handleTaskCreated = async (taskData: CreateTaskRequest) => {
+    try {
+      const newTask = await agentOrchestrationEngine.scheduleTask(taskData);
+      setTasks(agentOrchestrationEngine.getTasks());
+      setOrchestrationStatus(agentOrchestrationEngine.getStatus());
+      console.log('Task created successfully:', newTask);
+    } catch (error) {
+      console.error('Failed to create task:', error);
+    }
+  };
+
+  // Handle task actions
+  const handleTaskAction = async (taskId: string, action: 'start' | 'stop' | 'retry' | 'cancel') => {
+    try {
+      switch (action) {
+        case 'start':
+          // Start task execution
+          break;
+        case 'stop':
+          // Pause task execution
+          break;
+        case 'retry':
+          // Retry failed task
+          break;
+        case 'cancel':
+          agentOrchestrationEngine.cancelTask(taskId);
+          setTasks(agentOrchestrationEngine.getTasks());
+          setOrchestrationStatus(agentOrchestrationEngine.getStatus());
+          break;
+      }
+    } catch (error) {
+      console.error(`Failed to ${action} task:`, error);
+    }
+  };
+
+  // Stats including orchestration metrics
   const stats = [
     {
       title: 'Active Projects',
@@ -26,28 +99,28 @@ export default function DashboardPage() {
       color: 'text-blue-500'
     },
     {
-      title: 'Launches This Month',
-      value: '8',
-      change: '+3 from last month',
+      title: 'Running Tasks',
+      value: orchestrationStatus.active_tasks.toString(),
+      change: `${tasks.filter(t => t.status === 'completed').length} completed today`,
       changeType: 'positive',
-      icon: Zap,
+      icon: Play,
       color: 'text-green-500'
     },
     {
-      title: 'Open Tickets',
-      value: '24',
-      change: '-5 from yesterday',
+      title: 'Agent Tasks',
+      value: tasks.length.toString(),
+      change: `${orchestrationStatus.completed_tasks_today} completed today`,
       changeType: 'positive',
-      icon: MessageSquare,
-      color: 'text-orange-500'
+      icon: Zap,
+      color: 'text-purple-500'
     },
     {
-      title: 'SLA Breaches',
-      value: '2',
-      change: '+1 this week',
-      changeType: 'negative',
+      title: 'Failed Tasks',
+      value: orchestrationStatus.failed_tasks_today.toString(),
+      change: orchestrationStatus.failed_tasks_today > 0 ? 'Needs attention' : 'All good',
+      changeType: orchestrationStatus.failed_tasks_today > 0 ? 'negative' : 'positive',
       icon: AlertCircle,
-      color: 'text-red-500'
+      color: orchestrationStatus.failed_tasks_today > 0 ? 'text-red-500' : 'text-green-500'
     }
   ];
 
@@ -160,6 +233,66 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
           ))}
+        </div>
+
+        {/* Agent Orchestration Section */}
+        <div className="space-y-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold text-foreground mb-2">Agent Orchestration</h2>
+              <p className="text-muted-foreground">
+                Manage and monitor your automated AI agents and their tasks.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge 
+                variant={isOrchestrationRunning ? 'success' : 'secondary'}
+                className="text-xs"
+              >
+                {isOrchestrationRunning ? 'Running' : 'Stopped'}
+              </Badge>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  if (isOrchestrationRunning) {
+                    agentOrchestrationEngine.stopOrchestration();
+                    setIsOrchestrationRunning(false);
+                  } else {
+                    agentOrchestrationEngine.initializeAgents();
+                    setIsOrchestrationRunning(true);
+                  }
+                }}
+              >
+                {isOrchestrationRunning ? (
+                  <>
+                    <Pause className="h-4 w-4 mr-1" />
+                    Pause
+                  </>
+                ) : (
+                  <>
+                    <Play className="h-4 w-4 mr-1" />
+                    Start
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Task Scheduler */}
+            <TaskScheduler 
+              onTaskCreated={handleTaskCreated}
+              className="animate-fade-in-up"
+            />
+
+            {/* Task List */}
+            <TaskList 
+              tasks={tasks}
+              onTaskAction={handleTaskAction}
+              className="animate-fade-in-up"
+            />
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
