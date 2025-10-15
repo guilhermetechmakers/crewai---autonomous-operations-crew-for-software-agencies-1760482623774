@@ -615,3 +615,121 @@ export interface OnboardingCompleteResponse {
   redirect_url?: string;
   error?: string;
 }
+
+// Client Portal Types
+export interface ClientPortalInvitation {
+  id: string;
+  client_email: string;
+  project_id: string;
+  token: string;
+  expires_at: string;
+  status: 'pending' | 'accepted' | 'expired' | 'revoked';
+  created_at: string;
+  updated_at: string;
+  accepted_at?: string;
+  project?: Project;
+}
+
+export interface ClientPortalAccess {
+  id: string;
+  client_email: string;
+  project_id: string;
+  access_token: string;
+  permissions: ClientPortalPermission[];
+  last_accessed: string;
+  expires_at: string;
+  created_at: string;
+  project?: Project;
+}
+
+export interface ClientPortalPermission {
+  id: string;
+  name: string;
+  description: string;
+  resource: 'project' | 'milestones' | 'deliverables' | 'communication';
+  actions: ('view' | 'comment' | 'approve' | 'download')[];
+}
+
+export interface ClientPortalProject {
+  id: string;
+  name: string;
+  description: string;
+  status: 'draft' | 'active' | 'paused' | 'completed' | 'cancelled';
+  client_id: string;
+  milestones: ClientPortalMilestone[];
+  deliverables: ClientPortalDeliverable[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ClientPortalMilestone {
+  id: string;
+  title: string;
+  description: string;
+  status: 'upcoming' | 'in_progress' | 'completed' | 'overdue';
+  due_date: string;
+  completed_at?: string;
+  deliverables: string[];
+  progress_percentage: number;
+}
+
+export interface ClientPortalDeliverable {
+  id: string;
+  title: string;
+  description: string;
+  type: 'document' | 'design' | 'code' | 'presentation' | 'other';
+  status: 'draft' | 'ready_for_review' | 'approved' | 'rejected' | 'revision_requested';
+  file_url?: string;
+  file_size?: number;
+  uploaded_at?: string;
+  approved_at?: string;
+  feedback?: string;
+  milestone_id?: string;
+}
+
+// API Request/Response Types for Client Portal
+export interface SendInvitationRequest {
+  client_email: string;
+  project_id: string;
+  permissions: string[];
+  expires_in_days?: number;
+  message?: string;
+}
+
+export interface SendInvitationResponse {
+  success: boolean;
+  invitation?: ClientPortalInvitation;
+  error?: string;
+}
+
+export interface ValidateInvitationRequest {
+  token: string;
+}
+
+export interface ValidateInvitationResponse {
+  success: boolean;
+  invitation?: ClientPortalInvitation;
+  access_token?: string;
+  error?: string;
+}
+
+export interface ClientPortalLoginRequest {
+  token: string;
+}
+
+export interface ClientPortalLoginResponse {
+  success: boolean;
+  access_token?: string;
+  project?: ClientPortalProject;
+  permissions?: ClientPortalPermission[];
+  error?: string;
+}
+
+export interface RevokeInvitationRequest {
+  invitation_id: string;
+}
+
+export interface RevokeInvitationResponse {
+  success: boolean;
+  error?: string;
+}

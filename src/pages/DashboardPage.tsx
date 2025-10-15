@@ -32,6 +32,7 @@ import {
   Play,
   Pause
 } from 'lucide-react';
+import ClientPortalOverview from '@/components/client-portal/ClientPortalOverview';
 import { toast } from 'sonner';
 import type { CreateTaskRequest } from '@/types';
 
@@ -292,6 +293,37 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
           ))}
+        </div>
+
+        {/* Client Portal Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2">
+            <ClientPortalOverview />
+          </div>
+          <div className="lg:col-span-1">
+            {/* Placeholder for additional client portal content */}
+            <Card className="animate-fade-in-up">
+              <CardHeader>
+                <CardTitle>Client Portal Stats</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Total Invitations</span>
+                    <span className="text-2xl font-bold">12</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Active Clients</span>
+                    <span className="text-2xl font-bold text-success">8</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Pending Reviews</span>
+                    <span className="text-2xl font-bold text-warning">3</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
         {/* Agent Orchestration Section */}
