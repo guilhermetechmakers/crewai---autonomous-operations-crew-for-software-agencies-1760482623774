@@ -22,7 +22,7 @@ class AgentOrchestrationEngineService {
   private tasks: Map<string, AgentTask> = new Map();
   private schedules: Map<string, AgentSchedule> = new Map();
   private isRunning = false;
-  private intervalId: number | null = null;
+  private intervalId: NodeJS.Timeout | null = null;
   private listeners: Set<TaskUpdateListener> = new Set();
   private maxRetries = 3;
   private retryDelay = 5000; // 5 seconds
@@ -145,6 +145,52 @@ class AgentOrchestrationEngineService {
       console.error('Failed to schedule task:', error);
       throw new Error('Task scheduling failed');
     }
+  }
+
+  /**
+   * Schedule multiple tasks in batch
+   */
+  async scheduleBatchTasks(tasksData: CreateTaskRequest[]): Promise<AgentTask[]> {
+    const results: AgentTask[] = [];
+    
+    for (const taskData of tasksData) {
+      try {
+        const task = await this.scheduleTask(taskData);
+        results.push(task);
+      } catch (error) {
+        console.error(`Failed to schedule task: ${taskData.name}`, error);
+        // Continue with other tasks even if one fails
+      }
+    }
+    
+    return results;
+  }
+
+  /**
+   * Get tasks by status
+   */
+  getTasksByStatus(status: AgentTask['status']): AgentTask[] {
+    return Array.from(this.tasks.values())
+      .filter(task => task.status === status)
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }
+
+  /**
+   * Get tasks by agent type
+   */
+  getTasksByAgentType(agentType: AgentTask['agent_type']): AgentTask[] {
+    return Array.from(this.tasks.values())
+      .filter(task => task.agent_type === agentType)
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }
+
+  /**
+   * Get tasks by priority
+   */
+  getTasksByPriority(priority: AgentTask['priority']): AgentTask[] {
+    return Array.from(this.tasks.values())
+      .filter(task => task.priority === priority)
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   }
 
   /**
@@ -511,6 +557,154 @@ class AgentOrchestrationEngineService {
     
     console.log(`🧹 Cleaned up ${cleanedCount} old tasks`);
     return cleanedCount;
+  }
+
+  /**
+   * Get orchestration health metrics
+   */
+  getHealthMetrics() {
+    const tasks = Array.from(this.tasks.values());
+    const now = new Date();
+    const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    
+    const recentTasks = tasks.filter(task => 
+      new Date(task.created_at) > oneHourAgo
+    );
+    
+    const dailyTasks = tasks.filter(task => 
+      new Date(task.created_at) > oneDayAgo
+    );
+    
+    const successRate = dailyTasks.length > 0 
+      ? (dailyTasks.filter(t => t.status === 'completed').length / dailyTasks.length) * 100
+      : 100;
+    
+    const avgExecutionTime = dailyTasks
+      .filter(t => t.status === 'completed' && t.started_at && t.completed_at)
+      .reduce((acc, task) => {
+        const start = new Date(task.started_at!);
+        const end = new Date(task.completed_at!);
+        return acc + (end.getTime() - start.getTime());
+      }, 0) / Math.max(dailyTasks.filter(t => t.status === 'completed' && t.started_at && t.completed_at).length, 1);
+    
+    return {
+      totalTasks: tasks.length,
+      activeTasks: tasks.filter(t => t.status === 'running').length,
+      pendingTasks: tasks.filter(t => t.status === 'pending').length,
+      completedTasks: tasks.filter(t => t.status === 'completed').length,
+      failedTasks: tasks.filter(t => t.status === 'failed').length,
+      recentActivity: recentTasks.length,
+      dailyActivity: dailyTasks.length,
+      successRate: Math.round(successRate * 100) / 100,
+      avgExecutionTimeMs: Math.round(avgExecutionTime),
+      isHealthy: successRate > 80 && tasks.filter(t => t.status === 'failed').length < 5,
+      lastActivity: this.isRunning ? new Date().toISOString() : null,
+    };
+  }
+
+  /**
+   * Pause all running tasks
+   */
+  pauseAllTasks(): number {
+    let pausedCount = 0;
+    for (const [taskId, task] of this.tasks.entries()) {
+      if (task.status === 'running') {
+        task.status = 'pending';
+        task.updated_at = new Date().toISOString();
+        this.addTaskLog(taskId, 'warning', 'Task paused by system');
+        pausedCount++;
+      }
+    }
+    
+    console.log(`⏸️ Paused ${pausedCount} running tasks`);
+    return pausedCount;
+  }
+
+  /**
+   * Resume all paused tasks
+   */
+  resumeAllTasks(): number {
+    let resumedCount = 0;
+    for (const [taskId, task] of this.tasks.entries()) {
+      if (task.status === 'pending' && task.started_at) {
+        this.executeTask(taskId);
+        resumedCount++;
+      }
+    }
+    
+    console.log(`▶️ Resumed ${resumedCount} paused tasks`);
+    return resumedCount;
+  }
+
+  /**
+   * Get task execution history
+   */
+  getTaskHistory(limit: number = 50): AgentTask[] {
+    return Array.from(this.tasks.values())
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .slice(0, limit);
+  }
+
+  /**
+   * Get agent performance metrics
+   */
+  getAgentPerformanceMetrics() {
+    const tasks = Array.from(this.tasks.values());
+    const agentTypes = ['intake', 'spin_up', 'pm', 'launch', 'handover', 'support'] as const;
+    
+    return agentTypes.map(agentType => {
+      const agentTasks = tasks.filter(task => task.agent_type === agentType);
+      const completedTasks = agentTasks.filter(task => task.status === 'completed');
+      const failedTasks = agentTasks.filter(task => task.status === 'failed');
+      
+      const successRate = agentTasks.length > 0 
+        ? (completedTasks.length / agentTasks.length) * 100
+        : 100;
+      
+      const avgExecutionTime = completedTasks
+        .filter(t => t.started_at && t.completed_at)
+        .reduce((acc, task) => {
+          const start = new Date(task.started_at!);
+          const end = new Date(task.completed_at!);
+          return acc + (end.getTime() - start.getTime());
+        }, 0) / Math.max(completedTasks.filter(t => t.started_at && t.completed_at).length, 1);
+      
+      return {
+        agentType,
+        totalTasks: agentTasks.length,
+        completedTasks: completedTasks.length,
+        failedTasks: failedTasks.length,
+        successRate: Math.round(successRate * 100) / 100,
+        avgExecutionTimeMs: Math.round(avgExecutionTime),
+        isHealthy: successRate > 80 && failedTasks.length < 3,
+      };
+    });
+  }
+
+  /**
+   * Export task data for analysis
+   */
+  exportTaskData(format: 'json' | 'csv' = 'json'): string {
+    const tasks = Array.from(this.tasks.values());
+    
+    if (format === 'json') {
+      return JSON.stringify(tasks, null, 2);
+    }
+    
+    // CSV format
+    const headers = ['id', 'name', 'description', 'status', 'priority', 'agent_type', 'progress', 'created_at', 'started_at', 'completed_at'];
+    const csvRows = [headers.join(',')];
+    
+    tasks.forEach(task => {
+      const row = headers.map(header => {
+        const value = task[header as keyof AgentTask];
+        return typeof value === 'string' ? `"${value.replace(/"/g, '""')}"` : value || '';
+      });
+      csvRows.push(row.join(','));
+    });
+    
+    return csvRows.join('\n');
   }
 }
 

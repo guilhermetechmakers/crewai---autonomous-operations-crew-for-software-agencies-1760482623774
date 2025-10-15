@@ -71,4 +71,54 @@ export const agentOrchestrationApi = {
   
   // Clean up old tasks
   cleanupOldTasks: (daysOld?: number) => api.post<{ cleanedCount: number }>('/agent/tasks/cleanup', { daysOld }),
+
+  // Batch operations
+  scheduleBatchTasks: (tasks: CreateTaskRequest[]) => api.post<AgentTask[]>('/agent/tasks/batch', { tasks }),
+  
+  // Health and metrics
+  getHealthMetrics: () => api.get<{
+    totalTasks: number;
+    activeTasks: number;
+    pendingTasks: number;
+    completedTasks: number;
+    failedTasks: number;
+    recentActivity: number;
+    dailyActivity: number;
+    successRate: number;
+    avgExecutionTimeMs: number;
+    isHealthy: boolean;
+    lastActivity: string | null;
+  }>('/agent/health/metrics'),
+  
+  getAgentPerformanceMetrics: () => api.get<Array<{
+    agentType: string;
+    totalTasks: number;
+    completedTasks: number;
+    failedTasks: number;
+    successRate: number;
+    avgExecutionTimeMs: number;
+    isHealthy: boolean;
+  }>>('/agent/performance'),
+  
+  // Bulk operations
+  pauseAllTasks: () => api.post<{ pausedCount: number }>('/agent/tasks/pause-all', {}),
+  resumeAllTasks: () => api.post<{ resumedCount: number }>('/agent/tasks/resume-all', {}),
+  
+  // Task filtering
+  getTasksByStatus: (status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled') => 
+    api.get<AgentTask[]>(`/agent/tasks/status/${status}`),
+  
+  getTasksByAgentType: (agentType: 'intake' | 'spin_up' | 'pm' | 'launch' | 'handover' | 'support') => 
+    api.get<AgentTask[]>(`/agent/tasks/agent/${agentType}`),
+  
+  getTasksByPriority: (priority: 'low' | 'medium' | 'high' | 'urgent') => 
+    api.get<AgentTask[]>(`/agent/tasks/priority/${priority}`),
+  
+  // Data export
+  exportTaskData: (format: 'json' | 'csv' = 'json') => 
+    api.get<string>(`/agent/tasks/export?format=${format}`),
+  
+  // Task history
+  getTaskHistory: (limit?: number) => 
+    api.get<AgentTask[]>(`/agent/tasks/history?limit=${limit || 50}`),
 };
