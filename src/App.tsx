@@ -16,6 +16,7 @@ import OrchestrationPage from "./pages/OrchestrationPage";
 import SettingsPage from "./pages/SettingsPage";
 import PricingPage from "./pages/PricingPage";
 import OAuthCallbackPage from "./pages/OAuthCallbackPage";
+import SupportSLAQueuePage from "./pages/SupportSLAQueuePage";
 import NotFoundPage from "./pages/NotFoundPage";
 
 // React Query client with optimal defaults
@@ -52,6 +53,7 @@ export default function App() {
               <Route path="/orchestration/*" element={<OrchestrationPage />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/pricing" element={<PricingPage />} />
+              <Route path="/support" element={<SupportSLAQueuePage />} />
               <Route path="/auth/callback" element={<OAuthCallbackPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>

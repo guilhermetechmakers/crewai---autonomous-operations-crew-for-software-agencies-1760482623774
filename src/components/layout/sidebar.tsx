@@ -48,6 +48,11 @@ const navigationItems = [
     icon: MessageSquare,
   },
   {
+    name: 'Support Queue',
+    href: '/support',
+    icon: Headphones,
+  },
+  {
     name: 'Analytics',
     href: '/analytics',
     icon: BarChart3,
