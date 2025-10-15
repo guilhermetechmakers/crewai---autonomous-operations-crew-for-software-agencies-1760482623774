@@ -174,3 +174,60 @@ export const spinUpApi = {
   cancel: (spinupId: string) => 
     api.post<{ success: boolean }>(`/spinup/${spinupId}/cancel`, {}),
 };
+
+// Onboarding API functions
+export const onboardingApi = {
+  /**
+   * Get current onboarding data
+   */
+  getCurrent: () => 
+    api.get<import('@/types').OnboardingData>('/onboarding/current'),
+  
+  /**
+   * Update onboarding step data
+   */
+  updateStep: (data: import('@/types').OnboardingUpdateRequest) => 
+    api.post<import('@/types').OnboardingUpdateResponse>('/onboarding/update', data),
+  
+  /**
+   * Complete onboarding process
+   */
+  complete: (data: import('@/types').OnboardingCompleteRequest) => 
+    api.post<import('@/types').OnboardingCompleteResponse>('/onboarding/complete', data),
+  
+  /**
+   * Get available tech stack options
+   */
+  getTechStackOptions: () => 
+    api.get<import('@/types').TechStackSelection[]>('/onboarding/tech-stack-options'),
+  
+  /**
+   * Get available integration providers
+   */
+  getIntegrationProviders: () => 
+    api.get<import('@/types').IntegrationSelection[]>('/onboarding/integration-providers'),
+  
+  /**
+   * Get billing plan options
+   */
+  getBillingPlans: () => 
+    api.get<import('@/types').BillingPlanSelection[]>('/onboarding/billing-plans'),
+  
+  /**
+   * Test integration connection
+   */
+  testIntegration: (provider: string, config: Record<string, any>) => 
+    api.post<{ success: boolean; error?: string }>(`/onboarding/test-integration/${provider}`, config),
+  
+  /**
+   * Send team member invitations
+   */
+  inviteTeamMembers: (invites: import('@/types').TeamMemberInvite[]) => 
+    api.post<{ success: boolean; sent: number; failed: number }>('/onboarding/invite-team', { invites }),
+  
+  /**
+   * Skip onboarding (for returning users)
+   */
+  skip: () => 
+    api.post<{ success: boolean }>('/onboarding/skip', {}),
+};

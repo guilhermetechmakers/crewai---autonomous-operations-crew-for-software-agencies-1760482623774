@@ -504,3 +504,114 @@ export interface TaskExecutionResult {
   error?: string;
   execution_time: number; // in milliseconds
 }
+
+// Onboarding Types
+export interface OnboardingData {
+  id: string;
+  user_id: string;
+  workspace_id: string;
+  company_info: CompanyInfo;
+  tech_stack: TechStackSelection[];
+  integrations: IntegrationSelection[];
+  billing_plan: BillingPlanSelection;
+  team_members: TeamMemberInvite[];
+  preferences: UserPreferences;
+  status: 'in_progress' | 'completed' | 'skipped';
+  created_at: string;
+  updated_at: string;
+  completed_at?: string;
+}
+
+export interface CompanyInfo {
+  name: string;
+  size: '1-10' | '11-50' | '51-200' | '200+';
+  industry?: string;
+  website?: string;
+  description?: string;
+}
+
+export interface TechStackSelection {
+  id: string;
+  name: string;
+  category: 'frontend' | 'backend' | 'database' | 'deployment' | 'tools';
+  description: string;
+  icon?: string;
+  selected: boolean;
+}
+
+export interface IntegrationSelection {
+  provider: 'github' | 'gitlab' | 'bitbucket' | 'vercel' | 'cloudflare' | 'custom';
+  type: 'git' | 'deployment' | 'monitoring' | 'communication';
+  connected: boolean;
+  config?: Record<string, any>;
+}
+
+export interface BillingPlanSelection {
+  plan_id: 'starter' | 'professional' | 'enterprise';
+  name: string;
+  price: string;
+  period: string;
+  features: string[];
+  selected: boolean;
+}
+
+export interface TeamMemberInvite {
+  email: string;
+  role: 'admin' | 'user' | 'viewer';
+  status: 'pending' | 'accepted' | 'declined';
+  invited_at?: string;
+}
+
+export interface UserPreferences {
+  theme: 'dark' | 'light' | 'system';
+  timezone: string;
+  notifications: {
+    email: boolean;
+    push: boolean;
+    slack: boolean;
+  };
+  language: string;
+}
+
+export interface OnboardingStep {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  completed: boolean;
+  required: boolean;
+  order: number;
+}
+
+export interface OnboardingProgress {
+  current_step: number;
+  total_steps: number;
+  completed_steps: number;
+  progress_percentage: number;
+  estimated_time_remaining: number; // in minutes
+}
+
+// API Request/Response Types for Onboarding
+export interface OnboardingUpdateRequest {
+  step: string;
+  data: Partial<OnboardingData>;
+}
+
+export interface OnboardingUpdateResponse {
+  success: boolean;
+  data?: OnboardingData;
+  error?: string;
+  next_step?: string;
+}
+
+export interface OnboardingCompleteRequest {
+  onboarding_data: OnboardingData;
+  skip_remaining?: boolean;
+}
+
+export interface OnboardingCompleteResponse {
+  success: boolean;
+  workspace_id?: string;
+  redirect_url?: string;
+  error?: string;
+}
