@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -34,12 +34,18 @@ import {
   CheckCircle2,
   Sparkles,
   Loader2,
-  X
+  X,
+  AlertCircle,
+  Shield,
+  Rocket,
+  Eye
 } from 'lucide-react';
 import { onboardingApi } from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
 import type { 
   TechStackSelection, 
-  BillingPlanSelection
+  BillingPlanSelection,
+  OnboardingData
 } from '@/types';
 
 // Enhanced Zod schema with comprehensive validation
@@ -220,7 +226,10 @@ export default function OnboardingPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedTechStack, setSelectedTechStack] = useState<string[]>([]);
   const [connectedIntegrations, setConnectedIntegrations] = useState<string[]>([]);
+  const [stepValidation, setStepValidation] = useState<Record<number, boolean>>({});
+  const [isCompleting, setIsCompleting] = useState(false);
   const navigate = useNavigate();
+  const { user, refreshUser } = useAuth();
 
   const form = useForm<OnboardingFormData>({
     resolver: zodResolver(onboardingSchema),
@@ -240,27 +249,77 @@ export default function OnboardingPage() {
     },
   });
 
-  const { watch, setValue, handleSubmit, formState: { errors } } = form;
+  const { watch, setValue, handleSubmit, formState: { errors, isValid } } = form;
   const watchedValues = watch();
 
-  // React Query hooks for data fetching (commented out for now as we use static data)
+  // React Query hooks for data fetching
+  const { data: currentOnboardingData, isLoading: isLoadingCurrentData } = useQuery({
+    queryKey: ['onboarding-current'],
+    queryFn: onboardingApi.getCurrent,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    retry: 1,
+  });
+
+  // Note: These queries are available for future use when backend APIs are implemented
   // const { data: techStackOptionsData, isLoading: isLoadingTechStack } = useQuery({
   //   queryKey: ['tech-stack-options'],
   //   queryFn: onboardingApi.getTechStackOptions,
   //   staleTime: 1000 * 60 * 5, // 5 minutes
+  //   retry: 1,
   // });
 
   // const { data: integrationProviders, isLoading: isLoadingIntegrations } = useQuery({
   //   queryKey: ['integration-providers'],
   //   queryFn: onboardingApi.getIntegrationProviders,
   //   staleTime: 1000 * 60 * 5,
+  //   retry: 1,
   // });
 
   // const { data: billingPlansData, isLoading: isLoadingBilling } = useQuery({
   //   queryKey: ['billing-plans'],
   //   queryFn: onboardingApi.getBillingPlans,
   //   staleTime: 1000 * 60 * 5,
+  //   retry: 1,
   // });
+
+  // Initialize form with existing data if available
+  useEffect(() => {
+    if (currentOnboardingData) {
+      const data = currentOnboardingData;
+      if (data.company_info) {
+        setValue('companyName', data.company_info.name || '');
+        setValue('companySize', data.company_info.size || '1-10');
+        setValue('industry', data.company_info.industry || '');
+        setValue('website', data.company_info.website || '');
+        setValue('description', data.company_info.description || '');
+      }
+      if (data.tech_stack) {
+        const selectedIds = data.tech_stack.filter(tech => tech.selected).map(tech => tech.id);
+        setSelectedTechStack(selectedIds);
+        setValue('techStack', selectedIds);
+      }
+      if (data.integrations) {
+        const connectedIds = data.integrations.filter(integration => integration.connected).map(integration => integration.provider);
+        setConnectedIntegrations(connectedIds);
+        const gitProvider = data.integrations.find(i => i.type === 'git')?.provider;
+        const deploymentProvider = data.integrations.find(i => i.type === 'deployment')?.provider;
+        if (gitProvider) setValue('gitProvider', gitProvider as any);
+        if (deploymentProvider) setValue('deploymentPlatform', deploymentProvider as any);
+      }
+      if (data.billing_plan) {
+        setValue('billingPlan', data.billing_plan.plan_id as any);
+      }
+      if (data.team_members) {
+        setValue('teamMembers', data.team_members.map(member => ({
+          email: member.email,
+          role: member.role
+        })));
+      }
+      if (data.preferences) {
+        setValue('preferences', data.preferences);
+      }
+    }
+  }, [currentOnboardingData, setValue]);
 
   // Mutation for updating onboarding data
   const updateOnboardingMutation = useMutation({
@@ -268,6 +327,8 @@ export default function OnboardingPage() {
     onSuccess: (data) => {
       if (data.success) {
         toast.success('Progress saved!');
+        // Mark current step as validated
+        setStepValidation(prev => ({ ...prev, [currentStep]: true }));
       }
     },
     onError: (error) => {
@@ -279,15 +340,24 @@ export default function OnboardingPage() {
   // Mutation for completing onboarding
   const completeOnboardingMutation = useMutation({
     mutationFn: onboardingApi.complete,
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       if (data.success) {
+        setIsCompleting(true);
         toast.success('Welcome to CrewAI! Your workspace is ready.');
-        navigate(data.redirect_url || '/dashboard');
+        
+        // Refresh user data to get updated workspace info
+        await refreshUser();
+        
+        // Navigate to dashboard after a brief delay
+        setTimeout(() => {
+          navigate(data.redirect_url || '/dashboard');
+        }, 2000);
       }
     },
     onError: (error) => {
       toast.error('Failed to complete setup. Please try again.');
       console.error('Onboarding completion error:', error);
+      setIsCompleting(false);
     },
   });
 
@@ -326,18 +396,41 @@ export default function OnboardingPage() {
 
   const validateCurrentStep = async (): Promise<boolean> => {
     try {
-      await form.trigger();
-      const isValid = form.formState.isValid;
+      // Trigger validation for current step fields
+      const fieldsToValidate = getFieldsForStep(currentStep);
+      const isValid = await form.trigger(fieldsToValidate);
       
       if (!isValid) {
-        toast.error('Please complete all required fields before continuing.');
+        const firstError = Object.keys(form.formState.errors)[0];
+        const errorMessage = form.formState.errors[firstError as keyof typeof form.formState.errors]?.message;
+        toast.error(errorMessage || 'Please complete all required fields before continuing.');
         return false;
       }
       
       return true;
     } catch (error) {
       console.error('Validation error:', error);
+      toast.error('Validation failed. Please check your inputs.');
       return false;
+    }
+  };
+
+  const getFieldsForStep = (step: number): (keyof OnboardingFormData)[] => {
+    switch (step) {
+      case 0: // Company Info
+        return ['companyName', 'companySize'];
+      case 1: // Tech Stack
+        return ['techStack'];
+      case 2: // Integrations
+        return ['gitProvider', 'deploymentPlatform'];
+      case 3: // Billing
+        return ['billingPlan'];
+      case 4: // Team (optional)
+        return [];
+      case 5: // Preferences (optional)
+        return [];
+      default:
+        return [];
     }
   };
 
@@ -346,20 +439,26 @@ export default function OnboardingPage() {
     const stepId = steps[currentStep].id;
     
     try {
-      await updateOnboardingMutation.mutateAsync({
-        step: stepId,
-        data: {
-          company_info: {
+      const updateData: Partial<OnboardingData> = {};
+      
+      // Only include relevant data for the current step
+      switch (currentStep) {
+        case 0: // Company Info
+          updateData.company_info = {
             name: formData.companyName,
             size: formData.companySize,
             industry: formData.industry,
             website: formData.website,
             description: formData.description,
-          },
-          tech_stack: techStackOptions.filter(tech => 
+          };
+          break;
+        case 1: // Tech Stack
+          updateData.tech_stack = techStackOptions.filter(tech => 
             formData.techStack.includes(tech.id)
-          ).map(tech => ({ ...tech, selected: true })),
-          integrations: [
+          ).map(tech => ({ ...tech, selected: true }));
+          break;
+        case 2: // Integrations
+          updateData.integrations = [
             {
               provider: formData.gitProvider,
               type: 'git',
@@ -370,15 +469,26 @@ export default function OnboardingPage() {
               type: 'deployment',
               connected: connectedIntegrations.includes(formData.deploymentPlatform),
             },
-          ],
-          billing_plan: billingPlans.find(plan => plan.plan_id === formData.billingPlan)!,
-          team_members: (formData.teamMembers || []).map(member => ({
+          ];
+          break;
+        case 3: // Billing
+          updateData.billing_plan = billingPlans.find(plan => plan.plan_id === formData.billingPlan)!;
+          break;
+        case 4: // Team
+          updateData.team_members = (formData.teamMembers || []).map(member => ({
             ...member,
             status: 'pending' as const,
             invited_at: new Date().toISOString(),
-          })),
-          preferences: formData.preferences,
-        },
+          }));
+          break;
+        case 5: // Preferences
+          updateData.preferences = formData.preferences;
+          break;
+      }
+
+      await updateOnboardingMutation.mutateAsync({
+        step: stepId,
+        data: updateData,
       });
     } catch (error) {
       console.error('Failed to save progress:', error);
@@ -400,50 +510,53 @@ export default function OnboardingPage() {
       }
 
       // Complete onboarding
-      await completeOnboardingMutation.mutateAsync({
-        onboarding_data: {
-          id: '', // Will be generated by backend
-          user_id: '', // Will be set by backend
-          workspace_id: '', // Will be generated by backend
-          company_info: {
-            name: data.companyName,
-            size: data.companySize,
-            industry: data.industry,
-            website: data.website,
-            description: data.description,
-          },
-          tech_stack: techStackOptions.filter(tech => 
-            data.techStack.includes(tech.id)
-          ).map(tech => ({ ...tech, selected: true })),
-          integrations: [
-            {
-              provider: data.gitProvider,
-              type: 'git',
-              connected: connectedIntegrations.includes(data.gitProvider),
-            },
-            {
-              provider: data.deploymentPlatform,
-              type: 'deployment',
-              connected: connectedIntegrations.includes(data.deploymentPlatform),
-            },
-          ],
-          billing_plan: billingPlans.find(plan => plan.plan_id === data.billingPlan)!,
-          team_members: (data.teamMembers || []).map(member => ({
-            ...member,
-            status: 'pending' as const,
-            invited_at: new Date().toISOString(),
-          })),
-          preferences: data.preferences || {
-            theme: 'dark',
-            timezone: 'UTC',
-            notifications: { email: true, push: true, slack: false },
-            language: 'en',
-          },
-          status: 'completed',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          completed_at: new Date().toISOString(),
+      const onboardingData: OnboardingData = {
+        id: currentOnboardingData?.id || '', // Use existing ID or let backend generate
+        user_id: user?.id || '', // Use current user ID
+        workspace_id: currentOnboardingData?.workspace_id || '', // Use existing or let backend generate
+        company_info: {
+          name: data.companyName,
+          size: data.companySize,
+          industry: data.industry,
+          website: data.website,
+          description: data.description,
         },
+        tech_stack: techStackOptions.filter(tech => 
+          data.techStack.includes(tech.id)
+        ).map(tech => ({ ...tech, selected: true })),
+        integrations: [
+          {
+            provider: data.gitProvider,
+            type: 'git',
+            connected: connectedIntegrations.includes(data.gitProvider),
+          },
+          {
+            provider: data.deploymentPlatform,
+            type: 'deployment',
+            connected: connectedIntegrations.includes(data.deploymentPlatform),
+          },
+        ],
+        billing_plan: billingPlans.find(plan => plan.plan_id === data.billingPlan)!,
+        team_members: (data.teamMembers || []).map(member => ({
+          ...member,
+          status: 'pending' as const,
+          invited_at: new Date().toISOString(),
+        })),
+        preferences: data.preferences || {
+          theme: 'dark',
+          timezone: 'UTC',
+          notifications: { email: true, push: true, slack: false },
+          language: 'en',
+        },
+        status: 'completed',
+        created_at: currentOnboardingData?.created_at || new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        completed_at: new Date().toISOString(),
+      };
+
+      await completeOnboardingMutation.mutateAsync({
+        onboarding_data: onboardingData,
+        skip_remaining: false,
       });
     } catch (error) {
       console.error('Onboarding completion error:', error);
@@ -575,25 +688,58 @@ export default function OnboardingPage() {
         return (
           <div className="space-y-6 animate-fade-in-up">
             <div className="space-y-4">
-              <Label>Select your tech stack *</Label>
+              <div className="flex items-center justify-between">
+                <Label>Select your tech stack *</Label>
+                <Badge variant="outline" className="text-xs">
+                  {selectedTechStack.length} selected
+                </Badge>
+              </div>
+              
+              {/* Category filter */}
+              <div className="flex flex-wrap gap-2">
+                {['all', 'frontend', 'backend', 'database', 'deployment'].map((category) => (
+                  <button
+                    key={category}
+                    type="button"
+                    className={`px-3 py-1 rounded-full text-xs font-medium transition-all duration-200 ${
+                      category === 'all'
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                    }`}
+                  >
+                    {category.charAt(0).toUpperCase() + category.slice(1)}
+                  </button>
+                ))}
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 {techStackOptions.map((tech) => (
                   <button
                     key={tech.id}
                     type="button"
                     onClick={() => toggleTechStack(tech.id)}
-                    className={`p-4 rounded-lg border text-left transition-all duration-200 hover:scale-102 ${
+                    className={`p-4 rounded-lg border text-left transition-all duration-200 hover:scale-102 group ${
                       selectedTechStack.includes(tech.id)
                         ? 'border-primary bg-primary/10 text-primary shadow-glow'
                         : 'border-border hover:bg-accent hover:border-primary/50'
                     }`}
                   >
                     <div className="flex items-center space-x-3">
-                      <span className="text-2xl">{tech.icon}</span>
-                      <div>
-                        <div className="font-medium">{tech.name}</div>
+                      <span className="text-2xl group-hover:scale-110 transition-transform duration-200">
+                        {tech.icon}
+                      </span>
+                      <div className="flex-1">
+                        <div className="font-medium flex items-center justify-between">
+                          {tech.name}
+                          {selectedTechStack.includes(tech.id) && (
+                            <Check className="h-4 w-4 text-primary" />
+                          )}
+                        </div>
                         <div className="text-sm text-muted-foreground">{tech.description}</div>
-                        <Badge variant="secondary" className="mt-1 text-xs">
+                        <Badge 
+                          variant="secondary" 
+                          className="mt-1 text-xs"
+                        >
                           {tech.category}
                         </Badge>
                       </div>
@@ -601,8 +747,20 @@ export default function OnboardingPage() {
                   </button>
                 ))}
               </div>
+              
               {errors.techStack && (
-                <p className="text-sm text-destructive">{errors.techStack.message}</p>
+                <div className="flex items-center space-x-2 text-sm text-destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <span>{errors.techStack.message}</span>
+                </div>
+              )}
+
+              {selectedTechStack.length === 0 && (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Code2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>Select at least one technology to continue</p>
+                  <p className="text-sm">Choose the tools you use most frequently</p>
+                </div>
               )}
             </div>
           </div>
@@ -740,7 +898,12 @@ export default function OnboardingPage() {
           <div className="space-y-6 animate-fade-in-up">
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <Label>Team Members (Optional)</Label>
+                <div>
+                  <Label>Team Members (Optional)</Label>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Invite your team members to collaborate on projects
+                  </p>
+                </div>
                 <Button type="button" variant="outline" onClick={addTeamMember}>
                   <UserPlus className="h-4 w-4 mr-2" />
                   Add Member
@@ -749,31 +912,49 @@ export default function OnboardingPage() {
 
               <div className="space-y-3">
                 {(watchedValues.teamMembers || []).map((member, index) => (
-                  <div key={index} className="flex items-center space-x-3 p-4 border rounded-lg bg-card">
-                    <Input
-                      placeholder="member@company.com"
-                      value={member.email}
-                      onChange={(e) => updateTeamMember(index, 'email', e.target.value)}
-                      className="flex-1"
-                    />
-                    <Select
-                      value={member.role}
-                      onValueChange={(value) => updateTeamMember(index, 'role', value)}
-                    >
-                      <SelectTrigger className="w-32">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="admin">Admin</SelectItem>
-                        <SelectItem value="user">User</SelectItem>
-                        <SelectItem value="viewer">Viewer</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  <div key={index} className="flex items-center space-x-3 p-4 border rounded-lg bg-card hover:bg-card/80 transition-colors duration-200">
+                    <div className="flex-1">
+                      <Input
+                        placeholder="member@company.com"
+                        value={member.email}
+                        onChange={(e) => updateTeamMember(index, 'email', e.target.value)}
+                        className="mb-2"
+                      />
+                      <Select
+                        value={member.role}
+                        onValueChange={(value) => updateTeamMember(index, 'role', value)}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="admin">
+                            <div className="flex items-center space-x-2">
+                              <Shield className="h-4 w-4" />
+                              <span>Admin - Full access</span>
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="user">
+                            <div className="flex items-center space-x-2">
+                              <Users className="h-4 w-4" />
+                              <span>User - Standard access</span>
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="viewer">
+                            <div className="flex items-center space-x-2">
+                              <Eye className="h-4 w-4" />
+                              <span>Viewer - Read-only access</span>
+                            </div>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
                       onClick={() => removeTeamMember(index)}
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
                     >
                       <X className="h-4 w-4" />
                     </Button>
@@ -786,8 +967,29 @@ export default function OnboardingPage() {
                   <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p>No team members added yet</p>
                   <p className="text-sm">You can always invite team members later from your dashboard</p>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={addTeamMember}
+                    className="mt-4"
+                  >
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Add Your First Team Member
+                  </Button>
                 </div>
               )}
+
+              {/* Skip option */}
+              <div className="text-center pt-4">
+                <Button 
+                  type="button" 
+                  variant="ghost" 
+                  onClick={() => setCurrentStep(currentStep + 1)}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  Skip for now
+                </Button>
+              </div>
             </div>
           </div>
         );
@@ -870,41 +1072,102 @@ export default function OnboardingPage() {
                   </div>
                 </div>
               </div>
+
+              {/* Skip option */}
+              <div className="text-center pt-4">
+                <Button 
+                  type="button" 
+                  variant="ghost" 
+                  onClick={() => setCurrentStep(currentStep + 1)}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  Use default settings
+                </Button>
+              </div>
             </div>
           </div>
         );
 
       case 6: // Complete
         return (
-          <div className="text-center space-y-6 animate-fade-in-up">
-            <div className="w-20 h-20 bg-success/10 rounded-full flex items-center justify-center mx-auto animate-bounce-in">
-              <CheckCircle2 className="h-10 w-10 text-success" />
-            </div>
-            <div>
-              <h3 className="text-3xl font-bold text-foreground mb-2">
-                Welcome to CrewAI! 🎉
-              </h3>
-              <p className="text-muted-foreground text-lg">
-                Your workspace is ready. Let's start automating your agency operations.
-              </p>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="p-6 bg-card rounded-lg border card-hover">
-                <Zap className="h-8 w-8 text-primary mx-auto mb-3" />
-                <h4 className="font-semibold mb-2">AI Agents Ready</h4>
-                <p className="text-sm text-muted-foreground">Your specialized agents are configured and ready to work</p>
+          <div className="text-center space-y-8 animate-fade-in-up">
+            {isCompleting ? (
+              <div className="space-y-6">
+                <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto animate-pulse">
+                  <Rocket className="h-10 w-10 text-primary animate-bounce" />
+                </div>
+                <div>
+                  <h3 className="text-3xl font-bold text-foreground mb-2">
+                    Setting up your workspace...
+                  </h3>
+                  <p className="text-muted-foreground text-lg">
+                    Please wait while we configure everything for you.
+                  </p>
+                </div>
+                <div className="flex justify-center">
+                  <div className="flex space-x-2">
+                    <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                    <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                    <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                  </div>
+                </div>
               </div>
-              <div className="p-6 bg-card rounded-lg border card-hover">
-                <Github className="h-8 w-8 text-primary mx-auto mb-3" />
-                <h4 className="font-semibold mb-2">Integrations Connected</h4>
-                <p className="text-sm text-muted-foreground">Your tools are connected and ready for automation</p>
+            ) : (
+              <div className="space-y-6">
+                <div className="w-20 h-20 bg-success/10 rounded-full flex items-center justify-center mx-auto animate-bounce-in">
+                  <CheckCircle2 className="h-10 w-10 text-success" />
+                </div>
+                <div>
+                  <h3 className="text-3xl font-bold text-foreground mb-2">
+                    Welcome to CrewAI! 🎉
+                  </h3>
+                  <p className="text-muted-foreground text-lg">
+                    Your workspace is ready. Let's start automating your agency operations.
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="p-6 bg-card rounded-lg border card-hover animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
+                    <Zap className="h-8 w-8 text-primary mx-auto mb-3" />
+                    <h4 className="font-semibold mb-2">AI Agents Ready</h4>
+                    <p className="text-sm text-muted-foreground">Your specialized agents are configured and ready to work</p>
+                  </div>
+                  <div className="p-6 bg-card rounded-lg border card-hover animate-fade-in-up" style={{ animationDelay: '0.4s' }}>
+                    <Github className="h-8 w-8 text-primary mx-auto mb-3" />
+                    <h4 className="font-semibold mb-2">Integrations Connected</h4>
+                    <p className="text-sm text-muted-foreground">Your tools are connected and ready for automation</p>
+                  </div>
+                  <div className="p-6 bg-card rounded-lg border card-hover animate-fade-in-up" style={{ animationDelay: '0.6s' }}>
+                    <Users className="h-8 w-8 text-primary mx-auto mb-3" />
+                    <h4 className="font-semibold mb-2">Team Invited</h4>
+                    <p className="text-sm text-muted-foreground">Your team members will receive invitation emails</p>
+                  </div>
+                </div>
+                <div className="bg-gradient-to-r from-primary/10 to-accent/10 rounded-lg p-6 border border-primary/20">
+                  <div className="flex items-center justify-center space-x-2 mb-3">
+                    <Shield className="h-5 w-5 text-primary" />
+                    <span className="font-semibold text-primary">Next Steps</span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div className="flex items-center space-x-2">
+                      <Check className="h-4 w-4 text-success" />
+                      <span>Explore your dashboard</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Check className="h-4 w-4 text-success" />
+                      <span>Create your first project</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Check className="h-4 w-4 text-success" />
+                      <span>Invite team members</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Check className="h-4 w-4 text-success" />
+                      <span>Configure integrations</span>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div className="p-6 bg-card rounded-lg border card-hover">
-                <Users className="h-8 w-8 text-primary mx-auto mb-3" />
-                <h4 className="font-semibold mb-2">Team Invited</h4>
-                <p className="text-sm text-muted-foreground">Your team members will receive invitation emails</p>
-              </div>
-            </div>
+            )}
           </div>
         );
 
@@ -914,6 +1177,42 @@ export default function OnboardingPage() {
   };
 
   const progressPercentage = (currentStep / (steps.length - 1)) * 100;
+  const isStepValidated = stepValidation[currentStep] || false;
+
+  // Show loading state while fetching initial data
+  if (isLoadingCurrentData) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+          <p className="text-muted-foreground">Loading your onboarding progress...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state if there's a critical error
+  if (updateOnboardingMutation.isError || completeOnboardingMutation.isError) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center space-y-4 max-w-md mx-auto px-4">
+          <div className="w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center mx-auto">
+            <AlertCircle className="h-8 w-8 text-destructive" />
+          </div>
+          <h2 className="text-2xl font-bold text-foreground">Something went wrong</h2>
+          <p className="text-muted-foreground">
+            We encountered an error while setting up your workspace. Please try again.
+          </p>
+          <Button 
+            onClick={() => window.location.reload()} 
+            className="btn-primary"
+          >
+            Try Again
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -930,32 +1229,72 @@ export default function OnboardingPage() {
                 <p className="text-sm text-muted-foreground">Workspace Setup</p>
               </div>
             </div>
-            <div className="text-sm text-muted-foreground">
-              Step {currentStep + 1} of {steps.length}
+            <div className="flex items-center space-x-4">
+              <div className="text-sm text-muted-foreground">
+                Step {currentStep + 1} of {steps.length}
+              </div>
+              {isStepValidated && (
+                <Badge variant="secondary" className="bg-success/10 text-success border-success/20">
+                  <Check className="h-3 w-3 mr-1" />
+                  Validated
+                </Badge>
+              )}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Progress Bar */}
+      {/* Enhanced Progress Bar */}
       <div className="max-w-4xl mx-auto px-4 py-4">
-        <div className="space-y-2">
+        <div className="space-y-4">
           <div className="flex justify-between text-sm">
-            {steps.map((step, index) => (
-              <div
-                key={step.id}
-                className={`flex-1 text-center transition-colors duration-200 ${
-                  index <= currentStep ? 'text-primary' : 'text-muted-foreground'
-                }`}
-              >
-                <div className="flex items-center justify-center space-x-2">
-                  {React.createElement(step.icon, { className: "h-4 w-4" })}
-                  <span className="hidden sm:inline">{step.title}</span>
+            {steps.map((step, index) => {
+              const isCompleted = index < currentStep;
+              const isCurrent = index === currentStep;
+              
+              return (
+                <div
+                  key={step.id}
+                  className={`flex-1 text-center transition-all duration-300 ${
+                    isCompleted 
+                      ? 'text-success' 
+                      : isCurrent 
+                        ? 'text-primary' 
+                        : 'text-muted-foreground'
+                  }`}
+                >
+                  <div className="flex flex-col items-center space-y-2">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${
+                      isCompleted
+                        ? 'bg-success text-success-foreground'
+                        : isCurrent
+                          ? 'bg-primary text-primary-foreground ring-2 ring-primary/20'
+                          : 'bg-muted text-muted-foreground'
+                    }`}>
+                      {isCompleted ? (
+                        <Check className="h-4 w-4" />
+                      ) : (
+                        React.createElement(step.icon, { className: "h-4 w-4" })
+                      )}
+                    </div>
+                    <div className="text-xs font-medium">
+                      <span className="hidden sm:inline">{step.title}</span>
+                      <span className="sm:hidden">{index + 1}</span>
+                    </div>
+                    {step.required && (
+                      <Badge variant="outline" className="text-xs px-1 py-0">
+                        Required
+                      </Badge>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
-          <Progress value={progressPercentage} className="h-2" />
+          <div className="relative">
+            <Progress value={progressPercentage} className="h-2" />
+            <div className="absolute top-0 left-0 h-2 w-full bg-gradient-to-r from-primary/20 to-accent/20 rounded-full" />
+          </div>
         </div>
       </div>
 
@@ -979,41 +1318,60 @@ export default function OnboardingPage() {
                   type="button"
                   variant="outline"
                   onClick={prevStep}
-                  disabled={currentStep === 0}
+                  disabled={currentStep === 0 || updateOnboardingMutation.isPending}
                   className="transition-all duration-200 hover:scale-102"
                 >
                   <ArrowLeft className="h-4 w-4 mr-2" />
                   Back
                 </Button>
 
-                {currentStep < steps.length - 1 ? (
-                  <Button 
-                    type="button" 
-                    onClick={nextStep} 
-                    className="btn-primary transition-all duration-200 hover:scale-102"
-                    disabled={updateOnboardingMutation.isPending}
-                  >
-                    {updateOnboardingMutation.isPending ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <ArrowRight className="h-4 w-4 mr-2" />
-                    )}
-                    Next
-                  </Button>
-                ) : (
-                  <Button
-                    type="submit"
-                    className="btn-primary transition-all duration-200 hover:scale-102"
-                    disabled={isLoading || completeOnboardingMutation.isPending}
-                  >
-                    {isLoading || completeOnboardingMutation.isPending ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <Sparkles className="h-4 w-4 mr-2" />
-                    )}
-                    Complete Setup
-                  </Button>
-                )}
+                <div className="flex items-center space-x-4">
+                  {/* Step validation indicator */}
+                  {currentStep < steps.length - 1 && (
+                    <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                      {isStepValidated ? (
+                        <div className="flex items-center space-x-1 text-success">
+                          <Check className="h-4 w-4" />
+                          <span>Step validated</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center space-x-1">
+                          <AlertCircle className="h-4 w-4" />
+                          <span>Complete required fields</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {currentStep < steps.length - 1 ? (
+                    <Button 
+                      type="button" 
+                      onClick={nextStep} 
+                      className="btn-primary transition-all duration-200 hover:scale-102"
+                      disabled={updateOnboardingMutation.isPending || !isValid}
+                    >
+                      {updateOnboardingMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <ArrowRight className="h-4 w-4 mr-2" />
+                      )}
+                      Next
+                    </Button>
+                  ) : (
+                    <Button
+                      type="submit"
+                      className="btn-primary transition-all duration-200 hover:scale-102"
+                      disabled={isLoading || completeOnboardingMutation.isPending || isCompleting}
+                    >
+                      {isLoading || completeOnboardingMutation.isPending || isCompleting ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Sparkles className="h-4 w-4 mr-2" />
+                      )}
+                      {isCompleting ? 'Setting up...' : 'Complete Setup'}
+                    </Button>
+                  )}
+                </div>
               </div>
             </form>
           </CardContent>
