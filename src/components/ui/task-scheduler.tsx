@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -44,6 +44,7 @@ type TaskFormData = z.infer<typeof taskSchema>;
 interface TaskSchedulerProps {
   onTaskCreated?: (task: CreateTaskRequest) => void;
   className?: string;
+  isLoading?: boolean;
 }
 
 const agentTypes = [
@@ -98,7 +99,7 @@ const priorityColors = {
   urgent: 'bg-red-500/20 text-red-400 border-red-500/30',
 };
 
-export function TaskScheduler({ onTaskCreated, className }: TaskSchedulerProps) {
+export const TaskScheduler = memo(function TaskScheduler({ onTaskCreated, className, isLoading = false }: TaskSchedulerProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [scheduleType, setScheduleType] = useState<'immediate' | 'scheduled' | 'recurring'>('immediate');
 
@@ -246,11 +247,13 @@ export function TaskScheduler({ onTaskCreated, className }: TaskSchedulerProps) 
                     type="button"
                     onClick={() => setValue('agent_type', agent.value as any)}
                     className={cn(
-                      'p-5 rounded-2xl border-2 transition-all duration-300 text-left group relative overflow-hidden',
+                      'p-5 rounded-2xl border-2 transition-all duration-300 text-left group relative overflow-hidden focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background',
                       isSelected
                         ? 'border-primary bg-gradient-to-br from-primary/10 to-accent/10 shadow-glow scale-105'
                         : 'border-border hover:border-primary/50 hover:bg-secondary/50 hover:scale-102'
                     )}
+                    aria-pressed={isSelected}
+                    aria-describedby={`agent-${agent.value}-description`}
                   >
                     {/* Gradient overlay for selected state */}
                     {isSelected && (
@@ -276,7 +279,10 @@ export function TaskScheduler({ onTaskCreated, className }: TaskSchedulerProps) 
                         )}>
                           {agent.label}
                         </h3>
-                        <p className="text-sm text-muted-foreground leading-relaxed">
+                        <p 
+                          id={`agent-${agent.value}-description`}
+                          className="text-sm text-muted-foreground leading-relaxed"
+                        >
                           {agent.description}
                         </p>
                       </div>
@@ -295,11 +301,13 @@ export function TaskScheduler({ onTaskCreated, className }: TaskSchedulerProps) 
                 type="button"
                 onClick={() => setScheduleType('immediate')}
                 className={cn(
-                  'p-6 rounded-2xl border-2 transition-all duration-300 text-center group relative overflow-hidden',
+                  'p-6 rounded-2xl border-2 transition-all duration-300 text-center group relative overflow-hidden focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background',
                   scheduleType === 'immediate'
                     ? 'border-primary bg-gradient-to-br from-primary/10 to-accent/10 shadow-glow scale-105'
                     : 'border-border hover:border-primary/50 hover:bg-secondary/50 hover:scale-102'
                 )}
+                aria-pressed={scheduleType === 'immediate'}
+                aria-label="Schedule task to run immediately"
               >
                 {scheduleType === 'immediate' && (
                   <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-accent/5 rounded-2xl" />
@@ -330,11 +338,13 @@ export function TaskScheduler({ onTaskCreated, className }: TaskSchedulerProps) 
                 type="button"
                 onClick={() => setScheduleType('scheduled')}
                 className={cn(
-                  'p-6 rounded-2xl border-2 transition-all duration-300 text-center group relative overflow-hidden',
+                  'p-6 rounded-2xl border-2 transition-all duration-300 text-center group relative overflow-hidden focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background',
                   scheduleType === 'scheduled'
                     ? 'border-primary bg-gradient-to-br from-primary/10 to-accent/10 shadow-glow scale-105'
                     : 'border-border hover:border-primary/50 hover:bg-secondary/50 hover:scale-102'
                 )}
+                aria-pressed={scheduleType === 'scheduled'}
+                aria-label="Schedule task to run at a specific time"
               >
                 {scheduleType === 'scheduled' && (
                   <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-accent/5 rounded-2xl" />
@@ -365,11 +375,13 @@ export function TaskScheduler({ onTaskCreated, className }: TaskSchedulerProps) 
                 type="button"
                 onClick={() => setScheduleType('recurring')}
                 className={cn(
-                  'p-6 rounded-2xl border-2 transition-all duration-300 text-center group relative overflow-hidden',
+                  'p-6 rounded-2xl border-2 transition-all duration-300 text-center group relative overflow-hidden focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background',
                   scheduleType === 'recurring'
                     ? 'border-primary bg-gradient-to-br from-primary/10 to-accent/10 shadow-glow scale-105'
                     : 'border-border hover:border-primary/50 hover:bg-secondary/50 hover:scale-102'
                 )}
+                aria-pressed={scheduleType === 'recurring'}
+                aria-label="Schedule task to run on a recurring schedule"
               >
                 {scheduleType === 'recurring' && (
                   <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-accent/5 rounded-2xl" />
@@ -495,10 +507,10 @@ export function TaskScheduler({ onTaskCreated, className }: TaskSchedulerProps) 
           <div className="flex justify-end">
             <Button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || isLoading}
               className="btn-primary min-w-[120px]"
             >
-              {isSubmitting ? (
+              {(isSubmitting || isLoading) ? (
                 <div className="flex items-center gap-2">
                   <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   Creating...
@@ -515,4 +527,4 @@ export function TaskScheduler({ onTaskCreated, className }: TaskSchedulerProps) 
       </CardContent>
     </Card>
   );
-}
+});

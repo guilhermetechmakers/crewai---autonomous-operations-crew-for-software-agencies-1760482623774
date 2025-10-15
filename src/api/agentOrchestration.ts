@@ -47,4 +47,28 @@ export const agentOrchestrationApi = {
   // Pause/Resume task
   toggleTaskStatus: (taskId: string, isActive: boolean) => 
     api.put<{ success: boolean }>(`/agent/tasks/${taskId}/toggle`, { isActive }),
+
+  // Schedule a task (new endpoint)
+  scheduleTask: (data: CreateTaskRequest) => api.post<AgentTask>('/agent/schedule', data),
+  
+  // Pause a running task
+  pauseTask: (taskId: string) => api.post<{ success: boolean }>(`/agent/tasks/${taskId}/pause`, {}),
+  
+  // Resume a paused task
+  resumeTask: (taskId: string) => api.post<{ success: boolean }>(`/agent/tasks/${taskId}/resume`, {}),
+  
+  // Get task statistics
+  getTaskStatistics: () => api.get<{
+    total: number;
+    pending: number;
+    running: number;
+    completed: number;
+    failed: number;
+    cancelled: number;
+    completedToday: number;
+    failedToday: number;
+  }>('/agent/tasks/statistics'),
+  
+  // Clean up old tasks
+  cleanupOldTasks: (daysOld?: number) => api.post<{ cleanedCount: number }>('/agent/tasks/cleanup', { daysOld }),
 };

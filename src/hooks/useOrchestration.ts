@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { agentOrchestrationApi } from '@/api/agentOrchestration';
+import { toast } from 'sonner';
 import type { AgentTask, CreateTaskRequest } from '@/types';
 
 // Query keys
@@ -71,10 +72,15 @@ export const useCreateTask = () => {
   
   return useMutation({
     mutationFn: (data: CreateTaskRequest) => agentOrchestrationApi.createTask(data),
-    onSuccess: () => {
+    onSuccess: (data) => {
       // Invalidate and refetch tasks
       queryClient.invalidateQueries({ queryKey: orchestrationKeys.tasks() });
       queryClient.invalidateQueries({ queryKey: orchestrationKeys.status() });
+      toast.success(`Task "${data.name}" created successfully`);
+    },
+    onError: (error) => {
+      toast.error('Failed to create task');
+      console.error('Create task error:', error);
     },
   });
 };
@@ -103,6 +109,11 @@ export const useCancelTask = () => {
       // Invalidate tasks list and status
       queryClient.invalidateQueries({ queryKey: orchestrationKeys.tasks() });
       queryClient.invalidateQueries({ queryKey: orchestrationKeys.status() });
+      toast.success('Task cancelled successfully');
+    },
+    onError: (error) => {
+      toast.error('Failed to cancel task');
+      console.error('Cancel task error:', error);
     },
   });
 };
@@ -132,6 +143,11 @@ export const useRetryTask = () => {
       // Invalidate tasks list and status
       queryClient.invalidateQueries({ queryKey: orchestrationKeys.tasks() });
       queryClient.invalidateQueries({ queryKey: orchestrationKeys.status() });
+      toast.success('Task queued for retry');
+    },
+    onError: (error) => {
+      toast.error('Failed to retry task');
+      console.error('Retry task error:', error);
     },
   });
 };
@@ -160,6 +176,11 @@ export const useUpdateTaskPriority = () => {
       
       // Invalidate tasks list
       queryClient.invalidateQueries({ queryKey: orchestrationKeys.tasks() });
+      toast.success(`Task priority updated to ${priority}`);
+    },
+    onError: (error) => {
+      toast.error('Failed to update task priority');
+      console.error('Update priority error:', error);
     },
   });
 };
@@ -170,9 +191,14 @@ export const useToggleTaskStatus = () => {
   return useMutation({
     mutationFn: ({ taskId, isActive }: { taskId: string; isActive: boolean }) =>
       agentOrchestrationApi.toggleTaskStatus(taskId, isActive),
-    onSuccess: () => {
+    onSuccess: (_, { isActive }) => {
       // Invalidate tasks list
       queryClient.invalidateQueries({ queryKey: orchestrationKeys.tasks() });
+      toast.success(`Task ${isActive ? 'activated' : 'deactivated'} successfully`);
+    },
+    onError: (error) => {
+      toast.error('Failed to toggle task status');
+      console.error('Toggle task status error:', error);
     },
   });
 };
@@ -185,6 +211,11 @@ export const useStartOrchestration = () => {
     onSuccess: () => {
       // Invalidate status
       queryClient.invalidateQueries({ queryKey: orchestrationKeys.status() });
+      toast.success('Orchestration engine started');
+    },
+    onError: (error) => {
+      toast.error('Failed to start orchestration engine');
+      console.error('Start orchestration error:', error);
     },
   });
 };
@@ -197,6 +228,103 @@ export const useStopOrchestration = () => {
     onSuccess: () => {
       // Invalidate status
       queryClient.invalidateQueries({ queryKey: orchestrationKeys.status() });
+      toast.success('Orchestration engine stopped');
+    },
+    onError: (error) => {
+      toast.error('Failed to stop orchestration engine');
+      console.error('Stop orchestration error:', error);
+    },
+  });
+};
+
+// New hooks for enhanced functionality
+export const usePauseTask = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (taskId: string) => agentOrchestrationApi.pauseTask(taskId),
+    onSuccess: (_, taskId) => {
+      // Update the specific task in cache
+      queryClient.setQueryData(
+        orchestrationKeys.task(taskId),
+        (oldData: AgentTask | undefined) => {
+          if (oldData) {
+            return {
+              ...oldData,
+              status: 'pending',
+              updated_at: new Date().toISOString(),
+            };
+          }
+          return oldData;
+        }
+      );
+      
+      // Invalidate tasks list
+      queryClient.invalidateQueries({ queryKey: orchestrationKeys.tasks() });
+      toast.success('Task paused successfully');
+    },
+    onError: (error) => {
+      toast.error('Failed to pause task');
+      console.error('Pause task error:', error);
+    },
+  });
+};
+
+export const useResumeTask = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (taskId: string) => agentOrchestrationApi.resumeTask(taskId),
+    onSuccess: (_, taskId) => {
+      // Update the specific task in cache
+      queryClient.setQueryData(
+        orchestrationKeys.task(taskId),
+        (oldData: AgentTask | undefined) => {
+          if (oldData) {
+            return {
+              ...oldData,
+              status: 'running',
+              started_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            };
+          }
+          return oldData;
+        }
+      );
+      
+      // Invalidate tasks list
+      queryClient.invalidateQueries({ queryKey: orchestrationKeys.tasks() });
+      toast.success('Task resumed successfully');
+    },
+    onError: (error) => {
+      toast.error('Failed to resume task');
+      console.error('Resume task error:', error);
+    },
+  });
+};
+
+export const useTaskStatistics = () => {
+  return useQuery({
+    queryKey: [...orchestrationKeys.all, 'statistics'],
+    queryFn: agentOrchestrationApi.getTaskStatistics,
+    staleTime: 30000, // 30 seconds
+    refetchInterval: 10000, // Refetch every 10 seconds
+  });
+};
+
+export const useCleanupOldTasks = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (daysOld?: number) => agentOrchestrationApi.cleanupOldTasks(daysOld),
+    onSuccess: (data) => {
+      // Invalidate tasks list
+      queryClient.invalidateQueries({ queryKey: orchestrationKeys.tasks() });
+      toast.success(`Cleaned up ${data.cleanedCount} old tasks`);
+    },
+    onError: (error) => {
+      toast.error('Failed to cleanup old tasks');
+      console.error('Cleanup tasks error:', error);
     },
   });
 };

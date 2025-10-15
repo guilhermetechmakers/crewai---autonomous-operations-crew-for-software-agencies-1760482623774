@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -7,7 +7,19 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { TaskScheduler } from '@/components/ui/task-scheduler';
 import { TaskList } from '@/components/ui/task-list';
-import { agentOrchestrationEngine } from '@/services/AgentOrchestrationEngineService';
+import { agentOrchestrationEngine, type TaskUpdateEvent } from '@/services/AgentOrchestrationEngineService';
+import { 
+  useTasks,
+  useOrchestrationStatus,
+  useCreateTask,
+  useCancelTask,
+  useRetryTask,
+  usePauseTask,
+  useResumeTask,
+  useTaskStatistics,
+  useStartOrchestration,
+  useStopOrchestration
+} from '@/hooks/useOrchestration';
 import { 
   FolderOpen, 
   CheckCircle,
@@ -20,109 +32,156 @@ import {
   Play,
   Pause
 } from 'lucide-react';
-import type { AgentTask, CreateTaskRequest } from '@/types';
+import { toast } from 'sonner';
+import type { CreateTaskRequest } from '@/types';
 
 export default function DashboardPage() {
-  // Agent orchestration state
-  const [tasks, setTasks] = useState<AgentTask[]>([]);
-  const [orchestrationStatus, setOrchestrationStatus] = useState(agentOrchestrationEngine.getStatus());
+  // React Query hooks
+  const { data: tasks = [], isLoading: tasksLoading, error: tasksError } = useTasks();
+  const { data: orchestrationStatus } = useOrchestrationStatus();
+  const { data: taskStats } = useTaskStatistics();
+  
+  // Mutation hooks
+  const createTaskMutation = useCreateTask();
+  const cancelTaskMutation = useCancelTask();
+  const retryTaskMutation = useRetryTask();
+  const pauseTaskMutation = usePauseTask();
+  const resumeTaskMutation = useResumeTask();
+  const startOrchestrationMutation = useStartOrchestration();
+  const stopOrchestrationMutation = useStopOrchestration();
+
+  // Local state
   const [isOrchestrationRunning, setIsOrchestrationRunning] = useState(false);
 
-  // Initialize orchestration engine and load tasks
+  // Initialize orchestration engine
   useEffect(() => {
     const initializeOrchestration = async () => {
       try {
         await agentOrchestrationEngine.initializeAgents();
-        setTasks(agentOrchestrationEngine.getTasks());
-        setOrchestrationStatus(agentOrchestrationEngine.getStatus());
         setIsOrchestrationRunning(true);
       } catch (error) {
         console.error('Failed to initialize orchestration engine:', error);
+        toast.error('Failed to initialize orchestration engine');
       }
     };
 
     initializeOrchestration();
+  }, []);
 
-    // Set up periodic updates
-    const interval = setInterval(() => {
-      setTasks(agentOrchestrationEngine.getTasks());
-      setOrchestrationStatus(agentOrchestrationEngine.getStatus());
-    }, 5000); // Update every 5 seconds
+  // Set up real-time updates via event listeners
+  useEffect(() => {
+    const handleTaskUpdate = (event: TaskUpdateEvent) => {
+      console.log('Task update received:', event);
+      
+      // Show toast notifications for important events
+      switch (event.type) {
+        case 'task_completed':
+          toast.success(`Task "${event.task?.name}" completed successfully`);
+          break;
+        case 'task_failed':
+          toast.error(`Task "${event.task?.name}" failed: ${event.error || 'Unknown error'}`);
+          break;
+        case 'task_cancelled':
+          toast.info(`Task "${event.task?.name}" was cancelled`);
+          break;
+      }
+    };
 
-    return () => clearInterval(interval);
+    agentOrchestrationEngine.addEventListener(handleTaskUpdate);
+    
+    return () => {
+      agentOrchestrationEngine.removeEventListener(handleTaskUpdate);
+    };
   }, []);
 
   // Handle task creation
-  const handleTaskCreated = async (taskData: CreateTaskRequest) => {
+  const handleTaskCreated = useCallback(async (taskData: CreateTaskRequest) => {
     try {
       const newTask = await agentOrchestrationEngine.scheduleTask(taskData);
-      setTasks(agentOrchestrationEngine.getTasks());
-      setOrchestrationStatus(agentOrchestrationEngine.getStatus());
       console.log('Task created successfully:', newTask);
     } catch (error) {
       console.error('Failed to create task:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      toast.error(`Failed to create task: ${errorMessage}`);
     }
-  };
+  }, []);
 
   // Handle task actions
-  const handleTaskAction = async (taskId: string, action: 'start' | 'stop' | 'retry' | 'cancel') => {
+  const handleTaskAction = useCallback(async (taskId: string, action: 'start' | 'stop' | 'retry' | 'cancel') => {
     try {
       switch (action) {
         case 'start':
-          // Start task execution
+          resumeTaskMutation.mutate(taskId);
           break;
         case 'stop':
-          // Pause task execution
+          pauseTaskMutation.mutate(taskId);
           break;
         case 'retry':
-          // Retry failed task
+          retryTaskMutation.mutate(taskId);
           break;
         case 'cancel':
-          agentOrchestrationEngine.cancelTask(taskId);
-          setTasks(agentOrchestrationEngine.getTasks());
-          setOrchestrationStatus(agentOrchestrationEngine.getStatus());
+          cancelTaskMutation.mutate(taskId);
           break;
       }
     } catch (error) {
       console.error(`Failed to ${action} task:`, error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      toast.error(`Failed to ${action} task: ${errorMessage}`);
     }
-  };
+  }, [cancelTaskMutation, retryTaskMutation, pauseTaskMutation, resumeTaskMutation]);
 
-  // Stats including orchestration metrics
-  const stats = [
+  // Handle orchestration control
+  const handleOrchestrationToggle = useCallback(() => {
+    try {
+      if (isOrchestrationRunning) {
+        stopOrchestrationMutation.mutate();
+        setIsOrchestrationRunning(false);
+      } else {
+        startOrchestrationMutation.mutate();
+        setIsOrchestrationRunning(true);
+      }
+    } catch (error) {
+      console.error('Failed to toggle orchestration:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      toast.error(`Failed to toggle orchestration: ${errorMessage}`);
+    }
+  }, [isOrchestrationRunning, startOrchestrationMutation, stopOrchestrationMutation]);
+
+  // Stats including orchestration metrics - memoized for performance
+  const stats = useMemo(() => [
     {
       title: 'Active Projects',
       value: '12',
       change: '+2 this week',
-      changeType: 'positive',
+      changeType: 'positive' as const,
       icon: FolderOpen,
       color: 'text-blue-500'
     },
     {
       title: 'Running Tasks',
-      value: orchestrationStatus.active_tasks.toString(),
-      change: `${tasks.filter(t => t.status === 'completed').length} completed today`,
-      changeType: 'positive',
+      value: orchestrationStatus?.active_tasks?.toString() || '0',
+      change: `${taskStats?.completedToday || 0} completed today`,
+      changeType: 'positive' as const,
       icon: Play,
       color: 'text-green-500'
     },
     {
-      title: 'Agent Tasks',
-      value: tasks.length.toString(),
-      change: `${orchestrationStatus.completed_tasks_today} completed today`,
-      changeType: 'positive',
+      title: 'Total Tasks',
+      value: taskStats?.total?.toString() || '0',
+      change: `${taskStats?.completedToday || 0} completed today`,
+      changeType: 'positive' as const,
       icon: Zap,
       color: 'text-purple-500'
     },
     {
       title: 'Failed Tasks',
-      value: orchestrationStatus.failed_tasks_today.toString(),
-      change: orchestrationStatus.failed_tasks_today > 0 ? 'Needs attention' : 'All good',
-      changeType: orchestrationStatus.failed_tasks_today > 0 ? 'negative' : 'positive',
+      value: taskStats?.failedToday?.toString() || '0',
+      change: (taskStats?.failedToday || 0) > 0 ? 'Needs attention' : 'All good',
+      changeType: ((taskStats?.failedToday || 0) > 0 ? 'negative' : 'positive') as 'positive' | 'negative',
       icon: AlertCircle,
-      color: orchestrationStatus.failed_tasks_today > 0 ? 'text-red-500' : 'text-green-500'
+      color: (taskStats?.failedToday || 0) > 0 ? 'text-red-500' : 'text-green-500'
     }
-  ];
+  ], [orchestrationStatus?.active_tasks, taskStats?.completedToday, taskStats?.total, taskStats?.failedToday]);
 
   const recentProjects = [
     {
@@ -254,15 +313,8 @@ export default function DashboardPage() {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => {
-                  if (isOrchestrationRunning) {
-                    agentOrchestrationEngine.stopOrchestration();
-                    setIsOrchestrationRunning(false);
-                  } else {
-                    agentOrchestrationEngine.initializeAgents();
-                    setIsOrchestrationRunning(true);
-                  }
-                }}
+                onClick={handleOrchestrationToggle}
+                disabled={startOrchestrationMutation.isPending || stopOrchestrationMutation.isPending}
               >
                 {isOrchestrationRunning ? (
                   <>
@@ -284,6 +336,7 @@ export default function DashboardPage() {
             <TaskScheduler 
               onTaskCreated={handleTaskCreated}
               className="animate-fade-in-up"
+              isLoading={createTaskMutation.isPending}
             />
 
             {/* Task List */}
@@ -291,6 +344,8 @@ export default function DashboardPage() {
               tasks={tasks}
               onTaskAction={handleTaskAction}
               className="animate-fade-in-up"
+              isLoading={tasksLoading}
+              error={tasksError}
             />
           </div>
         </div>

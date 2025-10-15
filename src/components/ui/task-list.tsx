@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -27,6 +27,8 @@ interface TaskListProps {
   tasks: AgentTask[];
   onTaskAction?: (taskId: string, action: 'start' | 'stop' | 'retry' | 'cancel') => void;
   className?: string;
+  isLoading?: boolean;
+  error?: Error | null;
 }
 
 const agentIcons = {
@@ -62,7 +64,7 @@ const priorityColors = {
   urgent: 'bg-red-500/20 text-red-400',
 };
 
-export function TaskList({ tasks, onTaskAction, className }: TaskListProps) {
+export const TaskList = memo(function TaskList({ tasks, onTaskAction, className, isLoading = false, error }: TaskListProps) {
   const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
 
   const toggleTaskExpansion = (taskId: string) => {
@@ -115,6 +117,7 @@ export function TaskList({ tasks, onTaskAction, className }: TaskListProps) {
             variant="outline"
             onClick={() => onTaskAction?.(task.id, 'start')}
             className="h-8"
+            aria-label={`Start task: ${task.name}`}
           >
             <Play className="h-3 w-3 mr-1" />
             Start
@@ -129,6 +132,7 @@ export function TaskList({ tasks, onTaskAction, className }: TaskListProps) {
             variant="outline"
             onClick={() => onTaskAction?.(task.id, 'stop')}
             className="h-8"
+            aria-label={`Pause task: ${task.name}`}
           >
             <Pause className="h-3 w-3 mr-1" />
             Pause
@@ -143,6 +147,7 @@ export function TaskList({ tasks, onTaskAction, className }: TaskListProps) {
             variant="outline"
             onClick={() => onTaskAction?.(task.id, 'retry')}
             className="h-8"
+            aria-label={`Retry task: ${task.name}`}
           >
             <RotateCcw className="h-3 w-3 mr-1" />
             Retry
@@ -159,6 +164,7 @@ export function TaskList({ tasks, onTaskAction, className }: TaskListProps) {
           variant="outline"
           onClick={() => onTaskAction?.(task.id, 'cancel')}
           className="h-8 text-destructive hover:text-destructive"
+          aria-label={`Cancel task: ${task.name}`}
         >
           <Square className="h-3 w-3 mr-1" />
           Cancel
@@ -169,6 +175,49 @@ export function TaskList({ tasks, onTaskAction, className }: TaskListProps) {
     return actions;
   };
 
+  // Loading state
+  if (isLoading) {
+    return (
+      <Card className={cn('animate-fade-in-up', className)}>
+        <CardContent className="p-8 text-center">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted/50 flex items-center justify-center">
+            <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+          </div>
+          <h3 className="text-lg font-medium text-foreground mb-2">Loading Tasks...</h3>
+          <p className="text-muted-foreground">
+            Fetching your agent tasks and orchestration status.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <Card className={cn('animate-fade-in-up', className)}>
+        <CardContent className="p-8 text-center">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-destructive/10 flex items-center justify-center">
+            <AlertCircle className="h-8 w-8 text-destructive" />
+          </div>
+          <h3 className="text-lg font-medium text-foreground mb-2">Failed to Load Tasks</h3>
+          <p className="text-muted-foreground mb-4">
+            {error.message || 'An error occurred while loading tasks.'}
+          </p>
+          <Button 
+            variant="outline" 
+            onClick={() => window.location.reload()}
+            className="mt-2"
+          >
+            <RotateCcw className="h-4 w-4 mr-2" />
+            Retry
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Empty state
   if (tasks.length === 0) {
     return (
       <Card className={cn('animate-fade-in-up', className)}>
@@ -305,6 +354,8 @@ export function TaskList({ tasks, onTaskAction, className }: TaskListProps) {
                       variant="ghost"
                       onClick={() => toggleTaskExpansion(task.id)}
                       className="h-8 w-8 p-0"
+                      aria-label={isExpanded ? `Collapse details for ${task.name}` : `Expand details for ${task.name}`}
+                      aria-expanded={isExpanded}
                     >
                       <MoreHorizontal className="h-4 w-4" />
                     </Button>
@@ -373,4 +424,4 @@ export function TaskList({ tasks, onTaskAction, className }: TaskListProps) {
       </CardContent>
     </Card>
   );
-}
+});
