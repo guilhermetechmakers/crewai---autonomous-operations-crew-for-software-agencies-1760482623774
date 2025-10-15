@@ -96,7 +96,7 @@ export interface Notification {
   created_at: string;
 }
 
-export interface ApiResponse<T> {
+export interface SimpleApiResponse<T> {
   data: T | null;
   error: string | null;
 }
@@ -132,6 +132,9 @@ export interface OAuthCallbackResponse {
   token?: string;
   error?: string;
   requires_signup?: boolean;
+  provider?: 'google' | 'github' | 'microsoft';
+  expires_in?: number;
+  refresh_token?: string;
 }
 
 export interface SSOConfig {
@@ -148,6 +151,166 @@ export interface SSOConfig {
     tenant_id: string;
     enabled: boolean;
   };
+}
+
+// Enhanced OAuth types
+export interface OAuthInitiateRequest {
+  provider: 'google' | 'github' | 'microsoft';
+  redirect_uri: string;
+  state: string;
+}
+
+export interface OAuthInitiateResponse {
+  auth_url: string;
+  state: string;
+  provider: 'google' | 'github' | 'microsoft';
+}
+
+export interface OAuthTokenResponse {
+  access_token: string;
+  token_type: string;
+  expires_in: number;
+  refresh_token?: string;
+  scope?: string;
+}
+
+export interface OAuthUserInfo {
+  id: string;
+  email: string;
+  name: string;
+  given_name?: string;
+  family_name?: string;
+  picture?: string;
+  avatar_url?: string;
+  verified_email?: boolean;
+  provider: 'google' | 'github' | 'microsoft';
+  provider_id: string;
+}
+
+export interface OAuthErrorResponse {
+  error: string;
+  error_description?: string;
+  error_uri?: string;
+  state?: string;
+}
+
+// API Response types
+export interface ApiResponse<T = any> {
+  success: boolean;
+  data?: T;
+  error?: string;
+  message?: string;
+  code?: string;
+}
+
+export interface PaginatedApiResponse<T = any> extends ApiResponse<T[]> {
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    total_pages: number;
+  };
+}
+
+// Auth API specific types
+export interface LoginRequest {
+  email: string;
+  password: string;
+  remember_me?: boolean;
+}
+
+export interface LoginResponse {
+  user: User;
+  token: string;
+  expires_in: number;
+  refresh_token?: string;
+}
+
+export interface RegisterRequest {
+  email: string;
+  password: string;
+  full_name: string;
+  terms_accepted: boolean;
+}
+
+export interface RegisterResponse {
+  user: User;
+  token: string;
+  expires_in: number;
+  verification_required: boolean;
+}
+
+export interface PasswordResetRequest {
+  email: string;
+}
+
+export interface PasswordResetResponse {
+  message: string;
+  reset_token?: string;
+}
+
+export interface PasswordResetConfirmRequest {
+  token: string;
+  password: string;
+}
+
+export interface PasswordResetConfirmResponse {
+  message: string;
+  success: boolean;
+}
+
+// OAuth Provider Configuration
+export interface OAuthProviderConfig {
+  client_id: string;
+  client_secret?: string;
+  enabled: boolean;
+  scopes: string[];
+  redirect_uri: string;
+  auth_url: string;
+  token_url: string;
+  user_info_url: string;
+}
+
+export interface GoogleOAuthConfig extends OAuthProviderConfig {
+  tenant_id?: never;
+}
+
+export interface GitHubOAuthConfig extends OAuthProviderConfig {
+  tenant_id?: never;
+}
+
+export interface MicrosoftOAuthConfig extends OAuthProviderConfig {
+  tenant_id: string;
+}
+
+export type OAuthConfigMap = {
+  google: GoogleOAuthConfig;
+  github: GitHubOAuthConfig;
+  microsoft: MicrosoftOAuthConfig;
+};
+
+// Session Management
+export interface SessionInfo {
+  user: User;
+  token: string;
+  expires_at: string;
+  created_at: string;
+  last_activity: string;
+  device_info?: {
+    user_agent: string;
+    ip_address: string;
+    location?: string;
+  };
+}
+
+export interface SessionRefreshRequest {
+  refresh_token: string;
+}
+
+export interface SessionRefreshResponse {
+  token: string;
+  expires_in: number;
+  refresh_token?: string;
 }
 
 export interface AuthState {

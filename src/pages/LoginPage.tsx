@@ -3,13 +3,14 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SSOProviders } from '@/components/auth/SSOProviders';
-import { Bot } from 'lucide-react';
+import { OAuthTestComponent } from '@/components/auth/OAuthTestComponent';
+import { useAuth } from '@/contexts/AuthContext';
+import { Bot, Loader2 } from 'lucide-react';
 
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -21,6 +22,7 @@ type LoginFormData = z.infer<typeof loginSchema>;
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const { login, isOAuthLoading } = useAuth();
 
   const {
     register,
@@ -30,34 +32,39 @@ export default function LoginPage() {
     resolver: zodResolver(loginSchema),
   });
 
-  const onSubmit = async (_data: LoginFormData) => {
+  const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Store auth token
-      localStorage.setItem('auth_token', 'mock_token_123');
-      toast.success('Welcome back!');
+      await login(data.email, data.password);
       navigate('/dashboard');
     } catch (error) {
-      toast.error('Invalid credentials. Please try again.');
+      // Error handling is done in the AuthContext
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleSSOSuccess = () => {
-    toast.success('Redirecting to SSO provider...');
+    // OAuth redirect will happen automatically
+    // No need to show additional success message
   };
 
   const handleSSOError = (error: string) => {
     console.error('SSO Error:', error);
+    // Error handling is done in the SSOProviders component
   };
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4">
-      <div className="w-full max-w-md space-y-8">
+      <div className="w-full max-w-4xl space-y-8">
+        {/* OAuth Test Component - Only show in development */}
+        {import.meta.env.DEV && (
+          <div className="mb-8">
+            <OAuthTestComponent />
+          </div>
+        )}
+        
+        <div className="w-full max-w-md mx-auto space-y-8">
         {/* Header */}
         <div className="text-center">
           <div className="flex justify-center mb-4">
@@ -132,9 +139,16 @@ export default function LoginPage() {
                 type="submit"
                 className="w-full"
                 variant="gradient"
-                disabled={isLoading}
+                disabled={isLoading || isOAuthLoading}
               >
-                {isLoading ? 'Signing in...' : 'Sign In'}
+                {isLoading ? (
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Signing in...
+                  </div>
+                ) : (
+                  'Sign In'
+                )}
               </Button>
             </form>
 
@@ -143,6 +157,7 @@ export default function LoginPage() {
               onError={handleSSOError}
               variant="outline"
               size="default"
+              disabled={isLoading}
             />
           </CardContent>
         </Card>
@@ -158,6 +173,7 @@ export default function LoginPage() {
               Sign up for free
             </Link>
           </p>
+        </div>
         </div>
       </div>
     </div>

@@ -1,4 +1,4 @@
-// Simple fetch wrapper with error handling
+// Enhanced fetch wrapper with comprehensive error handling
 async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {}
@@ -22,20 +22,65 @@ async function apiRequest<T>(
     };
   }
 
-  const response = await fetch(url, config);
+  try {
+    const response = await fetch(url, config);
 
-  if (!response.ok) {
-    if (response.status === 401) {
-      localStorage.removeItem('auth_token');
-      window.location.href = '/login';
+    if (!response.ok) {
+      // Handle different HTTP status codes
+      if (response.status === 401) {
+        // Unauthorized - clear auth data and redirect
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('user_data');
+        localStorage.removeItem('oauth_state');
+        window.location.href = '/login';
+        throw new Error('Authentication required');
+      }
+
+      if (response.status === 403) {
+        throw new Error('Access forbidden');
+      }
+
+      if (response.status === 404) {
+        throw new Error('Resource not found');
+      }
+
+      if (response.status === 422) {
+        // Validation error - try to parse error details
+        try {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Validation failed');
+        } catch {
+          throw new Error('Validation failed');
+        }
+      }
+
+      if (response.status >= 500) {
+        throw new Error('Server error. Please try again later.');
+      }
+
+      // Generic error for other status codes
+      throw new Error(`Request failed with status ${response.status}`);
     }
-    throw new Error(`API Error: ${response.status}`);
-  }
 
-  return response.json();
+    // Handle empty responses
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      return {} as T;
+    }
+
+    return response.json();
+  } catch (error) {
+    // Handle network errors
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new Error('Network error. Please check your connection.');
+    }
+
+    // Re-throw other errors
+    throw error;
+  }
 }
 
-// API utilities
+// API utilities with enhanced error handling
 export const api = {
   get: <T>(endpoint: string) => apiRequest<T>(endpoint),
   post: <T>(endpoint: string, data: unknown) => 
@@ -50,6 +95,66 @@ export const api = {
     }),
   delete: <T>(endpoint: string) => 
     apiRequest<T>(endpoint, { method: 'DELETE' }),
+  patch: <T>(endpoint: string, data: unknown) => 
+    apiRequest<T>(endpoint, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+};
+
+// OAuth-specific API functions with enhanced error handling
+export const oauthApi = {
+  /**
+   * Get SSO configuration with retry logic
+   */
+  getSSOConfig: async () => {
+    try {
+      return await api.get('/auth/sso/config');
+    } catch (error) {
+      console.warn('Failed to fetch SSO config, using fallback:', error);
+      // Return fallback config
+      return {
+        google: { client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || '', enabled: false },
+        github: { client_id: import.meta.env.VITE_GITHUB_CLIENT_ID || '', enabled: false },
+        microsoft: { 
+          client_id: import.meta.env.VITE_MICROSOFT_CLIENT_ID || '', 
+          tenant_id: import.meta.env.VITE_MICROSOFT_TENANT_ID || 'common',
+          enabled: false 
+        },
+      };
+    }
+  },
+
+  /**
+   * Handle OAuth callback with enhanced error handling
+   */
+  handleCallback: async (data: {
+    code: string;
+    provider: string;
+    redirect_uri: string;
+    state: string;
+  }) => {
+    try {
+      return await api.post('/auth/oauth/callback', data);
+    } catch (error) {
+      console.error('OAuth callback failed:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Refresh auth token
+   */
+  refreshToken: async () => {
+    try {
+      return await api.post('/auth/refresh', {});
+    } catch (error) {
+      console.error('Token refresh failed:', error);
+      // Clear invalid token
+      localStorage.removeItem('auth_token');
+      throw error;
+    }
+  },
 };
 
 // Project Spin-Up API functions
