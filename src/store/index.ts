@@ -1,9 +1,11 @@
 import { configureStore } from '@reduxjs/toolkit';
 import orchestrationReducer from './orchestrationSlice';
+import proposalReducer from './proposalSlice';
 
 export const store = configureStore({
   reducer: {
     orchestration: orchestrationReducer,
+    proposals: proposalReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

@@ -802,3 +802,269 @@ export interface RevokeInvitationResponse {
   success: boolean;
   error?: string;
 }
+
+// Proposal & SoW Types
+export interface Proposal {
+  id: string;
+  title: string;
+  description: string;
+  content: string; // Rich text content
+  client_id: string;
+  project_id?: string;
+  workspace_id: string;
+  status: 'draft' | 'sent' | 'reviewed' | 'approved' | 'rejected' | 'expired';
+  version: number;
+  total_amount: number;
+  currency: string;
+  valid_until: string;
+  created_at: string;
+  updated_at: string;
+  sent_at?: string;
+  approved_at?: string;
+  rejected_at?: string;
+  created_by: string;
+  cost_breakdown: CostBreakdown;
+  approval_workflow: ApprovalWorkflow;
+  attachments: ProposalAttachment[];
+  comments: ProposalComment[];
+}
+
+export interface CostBreakdown {
+  id: string;
+  proposal_id: string;
+  items: CostItem[];
+  subtotal: number;
+  tax_rate: number;
+  tax_amount: number;
+  discount_rate: number;
+  discount_amount: number;
+  total: number;
+  currency: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CostItem {
+  id: string;
+  category: 'development' | 'design' | 'testing' | 'deployment' | 'maintenance' | 'consulting' | 'other';
+  name: string;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  total_price: number;
+  estimated_hours?: number;
+  hourly_rate?: number;
+  is_optional: boolean;
+  dependencies?: string[];
+}
+
+export interface ApprovalWorkflow {
+  id: string;
+  proposal_id: string;
+  status: 'pending' | 'in_review' | 'approved' | 'rejected' | 'expired';
+  steps: ApprovalStep[];
+  current_step: number;
+  created_at: string;
+  updated_at: string;
+  completed_at?: string;
+}
+
+export interface ApprovalStep {
+  id: string;
+  step_number: number;
+  approver_id: string;
+  approver_name: string;
+  approver_email: string;
+  status: 'pending' | 'approved' | 'rejected' | 'skipped';
+  comments?: string;
+  approved_at?: string;
+  rejected_at?: string;
+  due_date: string;
+  is_required: boolean;
+}
+
+export interface ProposalAttachment {
+  id: string;
+  proposal_id: string;
+  name: string;
+  file_url: string;
+  file_size: number;
+  file_type: string;
+  uploaded_at: string;
+  uploaded_by: string;
+}
+
+export interface ProposalComment {
+  id: string;
+  proposal_id: string;
+  user_id: string;
+  user_name: string;
+  content: string;
+  is_internal: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProposalTemplate {
+  id: string;
+  name: string;
+  description: string;
+  category: 'web_development' | 'mobile_app' | 'consulting' | 'maintenance' | 'custom';
+  content_template: string;
+  cost_items_template: CostItem[];
+  is_public: boolean;
+  created_by: string;
+  workspace_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// API Request/Response Types for Proposals
+export interface CreateProposalRequest {
+  title: string;
+  description: string;
+  content: string;
+  client_id: string;
+  project_id?: string;
+  cost_breakdown: Omit<CostBreakdown, 'id' | 'proposal_id' | 'created_at' | 'updated_at'>;
+  valid_until: string;
+  approvers: string[];
+}
+
+export interface CreateProposalResponse {
+  success: boolean;
+  proposal?: Proposal;
+  error?: string;
+}
+
+export interface UpdateProposalRequest {
+  title?: string;
+  description?: string;
+  content?: string;
+  cost_breakdown?: Partial<CostBreakdown>;
+  valid_until?: string;
+  approvers?: string[];
+}
+
+export interface UpdateProposalResponse {
+  success: boolean;
+  proposal?: Proposal;
+  error?: string;
+}
+
+export interface SendProposalRequest {
+  proposal_id: string;
+  message?: string;
+  send_email: boolean;
+  approvers: string[];
+}
+
+export interface SendProposalResponse {
+  success: boolean;
+  error?: string;
+}
+
+export interface ApproveProposalRequest {
+  proposal_id: string;
+  step_id: string;
+  comments?: string;
+}
+
+export interface ApproveProposalResponse {
+  success: boolean;
+  workflow?: ApprovalWorkflow;
+  error?: string;
+}
+
+export interface RejectProposalRequest {
+  proposal_id: string;
+  step_id: string;
+  comments: string;
+}
+
+export interface RejectProposalResponse {
+  success: boolean;
+  workflow?: ApprovalWorkflow;
+  error?: string;
+}
+
+export interface GetProposalsRequest {
+  client_id?: string;
+  project_id?: string;
+  status?: Proposal['status'];
+  page?: number;
+  limit?: number;
+}
+
+export interface GetProposalsResponse {
+  success: boolean;
+  proposals?: Proposal[];
+  pagination?: {
+    page: number;
+    limit: number;
+    total: number;
+    total_pages: number;
+  };
+  error?: string;
+}
+
+export interface GetProposalRequest {
+  proposal_id: string;
+}
+
+export interface GetProposalResponse {
+  success: boolean;
+  proposal?: Proposal;
+  error?: string;
+}
+
+export interface DeleteProposalRequest {
+  proposal_id: string;
+}
+
+export interface DeleteProposalResponse {
+  success: boolean;
+  error?: string;
+}
+
+// Cost Estimation Types
+export interface CostEstimationRequest {
+  project_type: string;
+  features: string[];
+  complexity: 'low' | 'medium' | 'high';
+  timeline: number; // in weeks
+  team_size?: number;
+  custom_requirements?: string;
+}
+
+export interface CostEstimationResponse {
+  success: boolean;
+  estimation?: {
+    total_hours: number;
+    total_cost: number;
+    breakdown: CostItem[];
+    timeline: number;
+    confidence_score: number; // 0-100
+  };
+  error?: string;
+}
+
+// Proposal Analytics Types
+export interface ProposalAnalytics {
+  total_proposals: number;
+  sent_proposals: number;
+  approved_proposals: number;
+  rejected_proposals: number;
+  pending_proposals: number;
+  average_approval_time: number; // in days
+  total_value: number;
+  conversion_rate: number; // percentage
+  monthly_trends: ProposalTrend[];
+}
+
+export interface ProposalTrend {
+  month: string;
+  proposals_sent: number;
+  proposals_approved: number;
+  total_value: number;
+}

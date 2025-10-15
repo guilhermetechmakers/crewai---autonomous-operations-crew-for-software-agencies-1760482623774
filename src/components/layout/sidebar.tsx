@@ -20,6 +20,7 @@ import {
   Search,
   Play,
   Clock,
+  FileText,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -36,6 +37,11 @@ const navigationItems = [
     name: 'Projects',
     href: '/projects',
     icon: FolderOpen,
+  },
+  {
+    name: 'Proposals',
+    href: '/proposals',
+    icon: FileText,
   },
   {
     name: 'Project Spin-Up',

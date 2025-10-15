@@ -82,23 +82,27 @@ async function apiRequest<T>(
 
 // API utilities with enhanced error handling
 export const api = {
-  get: <T>(endpoint: string) => apiRequest<T>(endpoint),
-  post: <T>(endpoint: string, data: unknown) => 
+  get: <T>(endpoint: string, options?: RequestInit) => 
+    apiRequest<T>(endpoint, { ...options, method: 'GET' }),
+  post: <T>(endpoint: string, data?: unknown, options?: RequestInit) => 
     apiRequest<T>(endpoint, {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: data ? JSON.stringify(data) : undefined,
+      ...options,
     }),
-  put: <T>(endpoint: string, data: unknown) => 
+  put: <T>(endpoint: string, data?: unknown, options?: RequestInit) => 
     apiRequest<T>(endpoint, {
       method: 'PUT',
-      body: JSON.stringify(data),
+      body: data ? JSON.stringify(data) : undefined,
+      ...options,
     }),
-  delete: <T>(endpoint: string) => 
-    apiRequest<T>(endpoint, { method: 'DELETE' }),
-  patch: <T>(endpoint: string, data: unknown) => 
+  delete: <T>(endpoint: string, options?: RequestInit) => 
+    apiRequest<T>(endpoint, { method: 'DELETE', ...options }),
+  patch: <T>(endpoint: string, data?: unknown, options?: RequestInit) => 
     apiRequest<T>(endpoint, {
       method: 'PATCH',
-      body: JSON.stringify(data),
+      body: data ? JSON.stringify(data) : undefined,
+      ...options,
     }),
 };
 
