@@ -2,7 +2,12 @@ import { api } from '@/lib/api';
 import type { 
   AgentTask, 
   AgentOrchestrationStatus, 
-  CreateTaskRequest
+  CreateTaskRequest,
+  Sprint,
+  SprintTask,
+  CreateSprintRequest,
+  UpdateSprintRequest,
+  SprintMetrics
 } from '@/types';
 
 // Agent Orchestration API functions
@@ -121,4 +126,55 @@ export const agentOrchestrationApi = {
   // Task history
   getTaskHistory: (limit?: number) => 
     api.get<AgentTask[]>(`/agent/tasks/history?limit=${limit || 50}`),
+
+  // Sprint Management API
+  // Get all sprints
+  getSprints: () => api.get<Sprint[]>('/sprints'),
+  
+  // Get sprint by ID
+  getSprint: (sprintId: string) => api.get<Sprint>(`/sprints/${sprintId}`),
+  
+  // Create a new sprint
+  createSprint: (data: CreateSprintRequest) => api.post<Sprint>('/sprints', data),
+  
+  // Update sprint
+  updateSprint: (sprintId: string, data: UpdateSprintRequest) => 
+    api.put<Sprint>(`/sprints/${sprintId}`, data),
+  
+  // Delete sprint
+  deleteSprint: (sprintId: string) => api.delete<{ success: boolean }>(`/sprints/${sprintId}`),
+  
+  // Get sprint tasks
+  getSprintTasks: (sprintId: string) => api.get<SprintTask[]>(`/sprints/${sprintId}/tasks`),
+  
+  // Add task to sprint
+  addTaskToSprint: (sprintId: string, taskId: string) => 
+    api.post<{ success: boolean }>(`/sprints/${sprintId}/tasks`, { task_id: taskId }),
+  
+  // Remove task from sprint
+  removeTaskFromSprint: (sprintId: string, taskId: string) => 
+    api.delete<{ success: boolean }>(`/sprints/${sprintId}/tasks/${taskId}`),
+  
+  // Get sprint metrics
+  getSprintMetrics: (sprintId?: string) => 
+    api.get<SprintMetrics>(sprintId ? `/sprints/${sprintId}/metrics` : '/sprints/metrics'),
+  
+  // Start sprint
+  startSprint: (sprintId: string) => 
+    api.post<{ success: boolean }>(`/sprints/${sprintId}/start`, {}),
+  
+  // Complete sprint
+  completeSprint: (sprintId: string) => 
+    api.post<{ success: boolean }>(`/sprints/${sprintId}/complete`, {}),
+  
+  // Get sprints by project
+  getSprintsByProject: (projectId: string) => 
+    api.get<Sprint[]>(`/projects/${projectId}/sprints`),
+  
+  // Get active sprints
+  getActiveSprints: () => api.get<Sprint[]>('/sprints/active'),
+  
+  // Get sprint burndown chart data
+  getSprintBurndown: (sprintId: string) => 
+    api.get<{ date: string; ideal: number; actual: number; remaining: number }[]>(`/sprints/${sprintId}/burndown`),
 };

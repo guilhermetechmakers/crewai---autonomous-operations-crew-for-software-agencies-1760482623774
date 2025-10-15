@@ -497,6 +497,75 @@ export interface CreateTaskRequest {
   timezone?: string;
 }
 
+// Sprint Planning Types
+export interface Sprint {
+  id: string;
+  name: string;
+  description: string;
+  project_id: string;
+  status: 'planning' | 'active' | 'completed' | 'cancelled';
+  start_date: string;
+  end_date: string;
+  goal: string;
+  capacity: number; // story points or hours
+  velocity: number; // completed story points
+  task_ids: string[];
+  created_at: string;
+  updated_at: string;
+  completed_at?: string;
+}
+
+export interface SprintTask {
+  id: string;
+  title: string;
+  description: string;
+  status: 'backlog' | 'ready' | 'in_progress' | 'review' | 'done';
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  story_points?: number;
+  assignee_id?: string;
+  sprint_id: string;
+  project_id: string;
+  created_at: string;
+  updated_at: string;
+  completed_at?: string;
+}
+
+export interface CreateSprintRequest {
+  name: string;
+  description: string;
+  project_id: string;
+  start_date: string;
+  end_date: string;
+  goal: string;
+  capacity: number;
+}
+
+export interface UpdateSprintRequest {
+  name?: string;
+  description?: string;
+  status?: Sprint['status'];
+  goal?: string;
+  capacity?: number;
+  task_ids?: string[];
+}
+
+export interface SprintMetrics {
+  total_sprints: number;
+  active_sprints: number;
+  completed_sprints: number;
+  average_velocity: number;
+  total_story_points: number;
+  completed_story_points: number;
+  burndown_data: BurndownDataPoint[];
+}
+
+export interface BurndownDataPoint {
+  date: string;
+  ideal: number;
+  actual: number;
+  remaining: number;
+}
+
 export interface TaskExecutionResult {
   task_id: string;
   status: 'completed' | 'failed';
